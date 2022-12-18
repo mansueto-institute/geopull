@@ -1,0 +1,7 @@
+black
+bump2version
+flake8
+mypy
+pylint
+pytest
+pytest-cov
