@@ -19,8 +19,8 @@ optional-dependencies = {dev = {file = "dev-requirements.txt"}}
 [tools.setuptools.packages.find]
 where = ["src"]
 
-# [tool.setuptools.package-data]
-# geopull = ["*.yaml"]
+[tool.setuptools.package-data]
+geopull = ["*.json"]
 
 [project.urls]
 repository = "https://github.com/mansueto-institute/geopull"
