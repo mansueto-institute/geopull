@@ -25,6 +25,8 @@ from geopull.tqdm_download import TqdmUpTo
 
 logger = logging.getLogger(__name__)
 
+logging.basicConfig(level=logging.INFO)
+
 
 def load_country_codes() -> dict[str, list[str]]:
     """
@@ -72,6 +74,13 @@ class GeoFile(ABC):
     def _download_url(self) -> str:
         """
         Returns the download url.
+        """
+
+    @property
+    @abstractmethod
+    def local_path(self) -> Path:
+        """
+        Returns the local path.
         """
 
     @property
@@ -145,32 +154,59 @@ class PBFFile(GeoFile):
             ]
         )
 
-    def download(self) -> Path:
-        local_path = self.datadir.get_pbf_dir().joinpath(
+    @property
+    def local_path(self) -> Path:
+        return self.datadir.osm_pbf_dir.joinpath(
             "".join((self.file_name, ".osm.pbf"))
-        )
-        if local_path.exists():
+        ).resolve()
+
+    @property
+    def geojson_path(self) -> Path:
+        """
+        Returns the path to the geojson file. Whether the file exists or not.
+
+        Returns:
+            Path: the path to the geojson file
+        """
+        return self.datadir.osm_geojson_dir.joinpath(
+            "".join((self.file_name, ".geojson"))
+        ).resolve()
+
+    @property
+    def parquet_path(self) -> Path:
+        """
+        Returns the path to the parquet file. Whether the file exists or not.
+
+        Returns:
+            Path: the path to the parquet file
+        """
+        return self.datadir.osm_parquet_dir.joinpath(
+            "".join((self.file_name, ".parquet"))
+        ).resolve()
+
+    def download(self) -> Path:
+        if self.local_path.exists():
             logger.warning(
-                "%s already exists, skipping download", local_path.resolve()
+                "%s already exists, skipping download", self.local_path
             )
-            return local_path.resolve()
+            return self.local_path
 
         with TqdmUpTo(
             unit="B",
             unit_scale=True,
             unit_divisor=1024,
             miniters=1,
-            desc=self._download_url.rsplit("/", maxsplit=1),
+            desc=self._download_url.rsplit("/", maxsplit=1)[-1],
         ) as t:
             urlretrieve(
                 self._download_url,
-                local_path,
+                self.local_path,
                 reporthook=t.update_to,
                 data=None,
             )
             t.total = t.n
 
-        return local_path.resolve()
+        return self.local_path
 
     def export(
         self,
@@ -179,7 +215,7 @@ class PBFFile(GeoFile):
         geometry_type: Optional[str] = None,
     ) -> Path:
         """
-        Exports the PBF file to the specified path.
+        Exports the PBF file to the specified path as a GeoJSON file.
 
         Args:
             attributes (list[str]): list of attributes to export from the PBF
@@ -193,11 +229,9 @@ class PBFFile(GeoFile):
         Returns:
             Path: the path to the exported file in the local machine
         """
-        source = (
-            self.datadir.get_pbf_dir()
-            .joinpath(f"{self.file_name}.osm.pbf")
-            .resolve()
-        )
+        source = self.datadir.osm_pbf_dir.joinpath(
+            f"{self.file_name}.osm.pbf"
+        ).resolve()
         if not source.exists():
             raise FileNotFoundError(
                 f"{source} does not exist, download it first"
@@ -211,14 +245,17 @@ class PBFFile(GeoFile):
 
         if geometry_type is not None:
             osmium_args.append(f"--geometry-type={geometry_type}")
-            target = self.datadir.get_geojson_dir().joinpath(
+            target = self.datadir.osm_geojson_dir.joinpath(
                 f"{self.file_name}-{geometry_type}.geojson"
             )
         else:
-            target = self.datadir.get_geojson_dir().joinpath(
+            target = self.datadir.osm_geojson_dir.joinpath(
                 f"{self.file_name}.geojson"
             )
         target = target.resolve()
+        if target.exists():
+            logger.warning("%s already exists, skipping export", target)
+            return target
 
         osmium_args.extend(["-o", str(target)])
 
@@ -235,6 +272,25 @@ class PBFFile(GeoFile):
         Path(tmpfile.name).unlink()
 
         return target
+
+    @staticmethod
+    def _change_path_suffix(path: Path, suffix: str) -> Path:
+        """
+        Changes the suffix of a path.
+
+        Args:
+            path (Path): the path
+            suffix (str): the new suffix
+
+        Returns:
+            Path: the new path
+        """
+        newpath = Path(path)
+        return (
+            newpath.parents[1]
+            .joinpath(suffix, ".".join((path.stem, suffix)))
+            .resolve()
+        )
 
     @staticmethod
     def _build_json_config(
