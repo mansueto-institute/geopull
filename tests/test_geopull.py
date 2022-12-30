@@ -26,3 +26,7 @@ def test_import_directories():
 
 def test_import_tqdm_download():
     import geopull.tqdm_download  # noqa: F401
+
+
+def test_import_cli():
+    import geopull.__main__  # noqa: F401
