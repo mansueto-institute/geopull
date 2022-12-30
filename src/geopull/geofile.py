@@ -215,6 +215,7 @@ class PBFFile(GeoFile):
         Returns:
             Path: the path to the exported file in the local machine
         """
+        logger.info("Exporting (%s, %s)", self.country_code, self.proper_name)
         source = self.datadir.osm_pbf_dir.joinpath(
             f"{self.file_name}.osm.pbf"
         ).resolve()
