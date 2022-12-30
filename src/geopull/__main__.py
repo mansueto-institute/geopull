@@ -41,6 +41,11 @@ class GeoPullCLI:
         )
         self._build_download_parser()
 
+        self.export_parser = subparsers.add_parser(
+            name="export", help="Export OSM data from pbfs into geojsons"
+        )
+        self._build_export_parser()
+
         self.args = self.parser.parse_args()
 
     def main(self) -> None:
@@ -63,6 +68,26 @@ class GeoPullCLI:
                         self.parser.error(str(e))
                     except NotADirectoryError as e:
                         self.parser.error(str(e))
+            elif self.args.source == "gdam":
+                self.parser.error("GDAM not implemented yet")
+        elif self.args.subcommand == "export":
+            for country in self.args.country_list:
+                try:
+                    pbf_file = PBFFile(
+                        country.upper(),
+                        datadir=DataDir(self.args.output_dir),
+                    )
+                    pbf_file.export(
+                        self.args.attributes,
+                        self.args.include_tags,
+                        self.args.geometry_type,
+                    )
+                except KeyError as e:
+                    self.parser.error(str(e))
+                except FileNotFoundError as e:
+                    self.parser.error(str(e))
+                except NotADirectoryError as e:
+                    self.parser.error(str(e))
 
     def _build_download_parser(self) -> None:
         self.download_parser.add_argument(
@@ -71,14 +96,46 @@ class GeoPullCLI:
             help="Source of the data to download",
             type=str,
         )
-        self.download_parser.add_argument(
-            "country_list",
+        self._add_io_args(self.download_parser)
+
+    def _build_export_parser(self) -> None:
+        self.export_parser.add_argument(
+            "--attributes",
+            type=str,
             nargs="+",
-            help="List of country codes following ISO 3166-1 alpha-3 format",
+            help="List of attributes to export",
+            default=[],
+        )
+        self.export_parser.add_argument(
+            "--include-tags",
+            type=str,
+            nargs="+",
+            help="List of tags to include; same as osmium-tool.",
+            default=[],
+        )
+        self.export_parser.add_argument(
+            "--geometry-type",
+            type=str,
+            choices={"point", "linestring", "polygon"},
+            default=None,
+            help="Geometry type to export",
+        )
+        self._add_io_args(self.export_parser)
+
+    def _add_io_args(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
+            "country_list",
+            metavar="country-list",
+            nargs="+",
+            help=(
+                "Space-delimited list of country codes following ISO 3166-1 "
+                "alpha-3 format"
+            ),
             type=str,
         )
-        self.download_parser.add_argument(
+        parser.add_argument(
             "--output-dir",
+            "-o",
             type=str,
             help=(
                 "Output directory for the downloaded files. If not specified, "
