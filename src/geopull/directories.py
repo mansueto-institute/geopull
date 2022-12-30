@@ -40,22 +40,26 @@ class DataDir:
             data.joinpath("osm", subdir).mkdir(exist_ok=True)
         self.data = data
 
-    def get_pbf_dir(self) -> Path:
+    @property
+    def osm_pbf_dir(self) -> Path:
         """
         Returns the path to the PBF files directory.
 
         Returns:
             Path: path to the PBF files directory.
         """
-        osm_dir = self.data.joinpath("osm", "pbf")
-        return osm_dir
+        pbf_dir = self.data.joinpath("osm", "pbf")
+        pbf_dir.mkdir(exist_ok=True)
+        return pbf_dir
 
-    def get_geojson_dir(self) -> Path:
+    @property
+    def osm_geojson_dir(self) -> Path:
         """
         Returns the path to the GeoJSON files directory.
 
         Returns:
             Path: path to the GeoJSON files directory.
         """
-        osm_dir = self.data.joinpath("osm", "geojson")
-        return osm_dir
+        geojson_dir = self.data.joinpath("osm", "geojson")
+        geojson_dir.mkdir(exist_ok=True)
+        return geojson_dir
