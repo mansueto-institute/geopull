@@ -25,8 +25,6 @@ from geopull.tqdm_download import TqdmUpTo
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.INFO)
-
 
 def load_country_codes() -> dict[str, list[str]]:
     """
@@ -54,7 +52,7 @@ class GeoFile(ABC):
     country_code: str
     _country_name: str = field(init=False)
     _continent: str = field(init=False)
-    datadir: ClassVar[DataDir] = field(repr=False, default=DataDir("."))
+    datadir: DataDir = field(repr=False, default=DataDir("."))
 
     def __post_init__(self):
         if self.country_code not in COUNTRYMAP:
@@ -170,18 +168,6 @@ class PBFFile(GeoFile):
         """
         return self.datadir.osm_geojson_dir.joinpath(
             "".join((self.file_name, ".geojson"))
-        ).resolve()
-
-    @property
-    def parquet_path(self) -> Path:
-        """
-        Returns the path to the parquet file. Whether the file exists or not.
-
-        Returns:
-            Path: the path to the parquet file
-        """
-        return self.datadir.osm_parquet_dir.joinpath(
-            "".join((self.file_name, ".parquet"))
         ).resolve()
 
     def download(self) -> Path:
