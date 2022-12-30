@@ -29,8 +29,8 @@ repository = "https://github.com/mansueto-institute/geopull"
 requires = ['setuptools']
 build-backend = "setuptools.build_meta"
 
-# [project.scripts]
-# geopull = "geopull.__main__:main"
+[project.scripts]
+geopull = "geopull.__main__:main"
 
 [tool.black]
 line-length = 79
