@@ -6,7 +6,7 @@ description = """
     """
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
     {name = "Manuel Martinez", email = "manmart@uchicago.edu"}
 ]
@@ -19,8 +19,8 @@ optional-dependencies = {dev = {file = "dev-requirements.txt"}}
 [tools.setuptools.packages.find]
 where = ["src"]
 
-# [tool.setuptools.package-data]
-# geopull = ["*.yaml"]
+[tool.setuptools.package-data]
+geopull = ["*.json"]
 
 [project.urls]
 repository = "https://github.com/mansueto-institute/geopull"
@@ -29,8 +29,8 @@ repository = "https://github.com/mansueto-institute/geopull"
 requires = ['setuptools']
 build-backend = "setuptools.build_meta"
 
-# [project.scripts]
-# geopull = "geopull.__main__:main"
+[project.scripts]
+geopull = "geopull.__main__:main"
 
 [tool.black]
 line-length = 79

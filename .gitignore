@@ -1,3 +1,6 @@
+# data folder
+data
+
 # pytest coverage
 coverage-junit.xml
 

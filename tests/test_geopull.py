@@ -14,3 +14,19 @@ Created on 2022-12-17 07:13:45-05:00
 
 def test_import_geopull():
     import geopull  # noqa: F401
+
+
+def test_import_geofile():
+    import geopull.geofile  # noqa: F401
+
+
+def test_import_directories():
+    import geopull.directories  # noqa: F401
+
+
+def test_import_tqdm_download():
+    import geopull.tqdm_download  # noqa: F401
+
+
+def test_import_cli():
+    import geopull.__main__  # noqa: F401
