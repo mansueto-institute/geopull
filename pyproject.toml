@@ -6,7 +6,7 @@ description = """
     """
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     {name = "Manuel Martinez", email = "manmart@uchicago.edu"}
 ]
