@@ -122,9 +122,16 @@ class GeoFile(ABC):
         return f"{self.country_code.lower()}-latest"
 
     @abstractmethod
-    def download(self) -> Path:
+    def download(self, overwrite: bool = False) -> Path:
         """
         Downloads the file.
+
+        Args:
+            overwrite (bool, optional): Overwrite existing files. Defaults to
+                False.
+
+        Returns:
+            Path: the path to the downloaded file
         """
 
 
@@ -170,8 +177,8 @@ class PBFFile(GeoFile):
             "".join((self.file_name, ".geojson"))
         ).resolve()
 
-    def download(self) -> Path:
-        if self.local_path.exists():
+    def download(self, overwrite: bool = False) -> Path:
+        if self.local_path.exists() and not overwrite:
             logger.warning(
                 "%s already exists, skipping download", self.local_path
             )
@@ -199,6 +206,7 @@ class PBFFile(GeoFile):
         attributes: list[str],
         include_tags: list[str],
         geometry_type: Optional[str] = None,
+        overwrite: bool = False,
     ) -> Path:
         """
         Exports the PBF file to the specified path as a GeoJSON file.
@@ -211,6 +219,8 @@ class PBFFile(GeoFile):
             geometry_type (Optional[str], optional): the geometry type to
                 export. Defaults to None, in which case al the geometries are
                 exported.
+            overwrite (bool, optional): Overwrite existing files. Defaults to
+                False.
 
         Returns:
             Path: the path to the exported file in the local machine
@@ -227,8 +237,10 @@ class PBFFile(GeoFile):
         osmium_args = [
             "osmium",
             "export",
-            "-O",  # overwrite existing file
         ]
+
+        if overwrite:
+            osmium_args.append("-O")
 
         if geometry_type is not None:
             osmium_args.append(f"--geometry-type={geometry_type}")
@@ -240,7 +252,7 @@ class PBFFile(GeoFile):
                 f"{self.file_name}.geojson"
             )
         target = target.resolve()
-        if target.exists():
+        if target.exists() and not overwrite:
             logger.warning("%s already exists, skipping export", target)
             return target
 
