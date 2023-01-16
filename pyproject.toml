@@ -40,6 +40,9 @@ ignore_missing_imports = true
 packages = ["src"]
 # exclude = ["src/geopull/cdk"]
 
+[tool.coverage.run]
+omit = ["src/geopull/tqdm_download.py"]
+
 [tool.pytest.ini_options]
 # filterwarnings = "ignore::DeprecationWarning:botocore.*"
 addopts = [
