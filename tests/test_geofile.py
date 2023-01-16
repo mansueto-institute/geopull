@@ -178,6 +178,8 @@ class TestPBFFile:
             overwrite=False,
         )
         assert result == pbf_file.geojson_path
+        pbf_file.local_path.unlink()
+        pbf_file.geojson_path.unlink()
 
     @staticmethod
     def test_export_geometry(pbf_file: PBFFile):
