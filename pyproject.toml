@@ -43,6 +43,9 @@ packages = ["src"]
 [tool.coverage.run]
 omit = ["src/geopull/tqdm_download.py"]
 
+[tool.coverage.report]
+omit = ["src/geopull/tqdm_download.py"]
+
 [tool.pytest.ini_options]
 # filterwarnings = "ignore::DeprecationWarning:botocore.*"
 addopts = [
