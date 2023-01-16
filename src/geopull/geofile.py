@@ -55,10 +55,12 @@ class GeoFile(ABC):
     datadir: DataDir = field(repr=False, default=DataDir("."))
 
     def __post_init__(self):
+        self.country_code = self.country_code.upper()
         if self.country_code not in COUNTRYMAP:
             raise KeyError(f"{self.country_code} is not a valid country code")
         self._country_name = COUNTRYMAP[self.country_code][0]
         self._continent = COUNTRYMAP[self.country_code][1]
+        self._proper_name = COUNTRYMAP[self.country_code][2]
 
     @property
     @abstractmethod
@@ -104,17 +106,17 @@ class GeoFile(ABC):
     @property
     def proper_name(self) -> str:
         """
-        Returns the proper name of the country, i.e. 'benin' -> 'Benin'.
+        Returns the proper name of the country.
 
         Returns:
             str: the proper name of the country
         """
-        return self.country_name.capitalize()
+        return self._proper_name
 
     @property
     def file_name(self) -> str:
         """
-        Returns the file name.
+        Returns the file name without the suffix.
 
         Returns:
             str: the file name
