@@ -54,22 +54,19 @@ class GeoPullCLI:
         """
 
         if self.args.subcommand == "download":
-            if self.args.source == "osm":
-                for country in self.args.country_list:
-                    try:
-                        pbf_file = PBFFile(
-                            country.upper(),
-                            datadir=DataDir(self.args.output_dir),
-                        )
-                        pbf_file.download()
-                    except KeyError as e:
-                        self.parser.error(str(e))
-                    except FileNotFoundError as e:
-                        self.parser.error(str(e))
-                    except NotADirectoryError as e:
-                        self.parser.error(str(e))
-            elif self.args.source == "gdam":
-                self.parser.error("GDAM not implemented yet")
+            for country in self.args.country_list:
+                try:
+                    pbf_file = PBFFile(
+                        country.upper(),
+                        datadir=DataDir(self.args.output_dir),
+                    )
+                    pbf_file.download(self.args.overwrite)
+                except KeyError as e:
+                    self.parser.error(str(e))
+                except FileNotFoundError as e:
+                    self.parser.error(str(e))
+                except NotADirectoryError as e:
+                    self.parser.error(str(e))
         elif self.args.subcommand == "export":
             for country in self.args.country_list:
                 try:
@@ -81,6 +78,7 @@ class GeoPullCLI:
                         self.args.attributes,
                         self.args.include_tags,
                         self.args.geometry_type,
+                        self.args.overwrite,
                     )
                 except KeyError as e:
                     self.parser.error(str(e))
@@ -88,14 +86,10 @@ class GeoPullCLI:
                     self.parser.error(str(e))
                 except NotADirectoryError as e:
                     self.parser.error(str(e))
+        else:
+            self.parser.print_usage()
 
     def _build_download_parser(self) -> None:
-        self.download_parser.add_argument(
-            "source",
-            choices={"osm", "gdam"},
-            help="Source of the data to download",
-            type=str,
-        )
         self._add_io_args(self.download_parser)
 
     def _build_export_parser(self) -> None:
@@ -120,6 +114,7 @@ class GeoPullCLI:
             default=None,
             help="Geometry type to export",
         )
+
         self._add_io_args(self.export_parser)
 
     def _add_io_args(self, parser: ArgumentParser) -> None:
@@ -143,6 +138,13 @@ class GeoPullCLI:
                 "directory."
             ),
             default=".",
+        )
+        parser.add_argument(
+            "--overwrite",
+            "-O",
+            action="store_true",
+            help="Overwrite existing files",
+            default=False,
         )
 
 

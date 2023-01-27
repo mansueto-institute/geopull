@@ -6,7 +6,7 @@ description = """
     """
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.3.1"
+version = "0.4.1"
 authors = [
     {name = "Manuel Martinez", email = "manmart@uchicago.edu"}
 ]
@@ -39,6 +39,12 @@ line-length = 79
 ignore_missing_imports = true
 packages = ["src"]
 # exclude = ["src/geopull/cdk"]
+
+[tool.coverage.run]
+omit = ["src/geopull/tqdm_download.py"]
+
+[tool.coverage.report]
+omit = ["src/geopull/tqdm_download.py"]
 
 [tool.pytest.ini_options]
 # filterwarnings = "ignore::DeprecationWarning:botocore.*"
