@@ -9,6 +9,8 @@ Created on 2022-12-29 04:02:40-05:00
 ===============================================================================
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -178,6 +180,12 @@ class PBFFile(GeoFile):
         return self.datadir.osm_geojson_dir.joinpath(
             "".join((self.file_name, ".geojson"))
         ).resolve()
+
+    def remove(self) -> None:
+        """
+        Removes the PBF file from the local directory.
+        """
+        self.local_path.unlink(missing_ok=True)
 
     def download(self, overwrite: bool = False) -> Path:
         if self.local_path.exists() and not overwrite:
