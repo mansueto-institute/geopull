@@ -13,6 +13,7 @@ from argparse import ArgumentParser
 
 from geopull.geofile import PBFFile
 from geopull.directories import DataDir
+from geopull.extractor import KBlocksExtractor
 
 logging.basicConfig(level=logging.INFO)
 
@@ -45,6 +46,12 @@ class GeoPullCLI:
             name="export", help="Export OSM data from pbfs into geojsons"
         )
         self._build_export_parser()
+
+        self.extract_parser = subparsers.add_parser(
+            name="extract",
+            help="Extract necessary data from OSM data for blocking.",
+        )
+        self._build_extract_parser()
 
         self.args = self.parser.parse_args()
 
@@ -86,11 +93,29 @@ class GeoPullCLI:
                     self.parser.error(str(e))
                 except NotADirectoryError as e:
                     self.parser.error(str(e))
+        elif self.args.subcommand == "extract":
+            extractor = KBlocksExtractor(datadir=DataDir(self.args.output_dir))
+            for country in self.args.country_list:
+                try:
+                    pbf_file = PBFFile(
+                        country.upper(), datadir=DataDir(self.args.output_dir)
+                    )
+                    extractor.extract(pbf_file)
+                except KeyError as e:
+                    self.parser.error(str(e))
+                except FileNotFoundError as e:
+                    self.parser.error(str(e))
+                except NotADirectoryError as e:
+                    self.parser.error(str(e))
+
         else:
             self.parser.print_usage()
 
     def _build_download_parser(self) -> None:
         self._add_io_args(self.download_parser)
+
+    def _build_extract_parser(self) -> None:
+        self._add_io_args(self.extract_parser)
 
     def _build_export_parser(self) -> None:
         self.export_parser.add_argument(
