@@ -35,6 +35,8 @@ class TestDataDir:
         assert data_dir.osm_pbf_dir.is_dir()
         assert data_dir.osm_geojson_dir.exists()
         assert data_dir.osm_geojson_dir.is_dir()
+        assert data_dir.osm_parquet_dir.exists()
+        assert data_dir.osm_parquet_dir.is_dir()
 
     @staticmethod
     def test_init_not_exists(tmp_path):
