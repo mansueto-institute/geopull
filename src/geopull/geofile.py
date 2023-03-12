@@ -217,6 +217,7 @@ class PBFFile(GeoFile):
         include_tags: list[str],
         geometry_type: Optional[str] = None,
         overwrite: bool = False,
+        progress: bool = True,
     ) -> Path:
         """
         Exports the PBF file to the specified path as a GeoJSON file.
@@ -251,6 +252,11 @@ class PBFFile(GeoFile):
 
         if overwrite:
             osmium_args.append("-O")
+
+        if progress:
+            osmium_args.append("--progress")
+        else:
+            osmium_args.append("--no-progress")
 
         if geometry_type is not None:
             osmium_args.append(f"--geometry-type={geometry_type}")
