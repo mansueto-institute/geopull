@@ -19,6 +19,8 @@ class Extractor(ABC):
     """Abstract class for extracting features from a PBF file."""
 
     datadir: DataDir = field(repr=False, default=DataDir("."))
+    overwrite: bool = False
+    progress: bool = False
 
     @abstractmethod
     def extract(self, pbf: PBFFile) -> None:
@@ -48,7 +50,7 @@ class KBlocksExtractor(Extractor):
         self._extract_line_string(pbf)
         self._extract_admin_levels(pbf)
 
-    def _extract_admin_levels(self, pbf: PBFFile) -> GeoDataFrame:
+    def _extract_admin_levels(self, pbf: PBFFile) -> None:
         """Extracts admin levels from a PBF file into a parquet file.
 
         Only the admin levels that are one level higher than 2 for the given
@@ -57,18 +59,21 @@ class KBlocksExtractor(Extractor):
 
         Args:
             pbf (PBFFile): the PBF file to extract from.
-
-        Returns:
-            GeoDataFrame: the extracted admin level features.
         """
+        if self._make_output_path(pbf, "admin").exists():
+            logger.info("Admin levels already extracted for %s", pbf.file_name)
+            return
+
         logger.info("Extracting admin levels from %s", pbf.file_name)
         output: Path = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=["admin_level"],
             geometry_type="polygon",
-            overwrite=True,
+            overwrite=self.overwrite,
+            progress=self.progress,
         )
         gdf: GeoDataFrame = gpd.read_file(output)
+        gdf = gdf[gdf["admin_level"].str.isnumeric()]
         gdf["admin_level"] = gdf["admin_level"].astype(int)
 
         admin_lvls = gdf["admin_level"].unique()
@@ -76,22 +81,21 @@ class KBlocksExtractor(Extractor):
 
         gdf = gdf[gdf["admin_level"] == min_admin_lvl]
         self._rename_columns(gdf)
-        self._gdf_to_parquet(gdf=gdf, fname=pbf.file_name, suffix="admin")
+        gdf.to_parquet(self._make_output_path(pbf, "admin"))
         output.unlink(missing_ok=True)
 
-        return gdf
-
-    def _extract_line_string(self, pbf: PBFFile) -> GeoDataFrame:
+    def _extract_line_string(self, pbf: PBFFile) -> None:
         """Extracts line string features from a PBF file.
 
         These features are needed to create the blocks.
 
         Args:
             pbf (PBFFile): The PBF file to extract from.
-
-        Returns:
-            GeoDataFrame: the extracted line string features.
         """
+        if self._make_output_path(pbf, "linestring").exists():
+            logger.info("Linestrings already extracted for %s", pbf.file_name)
+            return
+
         logger.info("Extracting line strings from %s", pbf.file_name)
         output: Path = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
@@ -105,15 +109,15 @@ class KBlocksExtractor(Extractor):
                 "boundary",
             ],
             geometry_type="linestring",
-            overwrite=True,
+            overwrite=self.overwrite,
+            progress=self.progress,
         )
         gdf: GeoDataFrame = gpd.read_file(output)
         self._rename_columns(gdf)
-        self._gdf_to_parquet(gdf=gdf, fname=pbf.file_name, suffix="linestring")
+        gdf.to_parquet(self._make_output_path(pbf, "linestring"))
         output.unlink(missing_ok=True)
-        return gdf
 
-    def _extract_water_features(self, pbf: PBFFile) -> GeoDataFrame:
+    def _extract_water_features(self, pbf: PBFFile) -> None:
         """Extracts water features from a PBF file.
 
         These features are needed to create the blocks as well since the
@@ -121,10 +125,13 @@ class KBlocksExtractor(Extractor):
 
         Args:
             pbf (PBFFile): The PBF file to extract from.
-
-        Returns:
-            GeoDataFrame: the extracted water features.
         """
+        if self._make_output_path(pbf, "water").exists():
+            logger.info(
+                "Water features already extracted for %s", pbf.file_name
+            )
+            return
+
         logger.info("Extracting water features from %s", pbf.file_name)
         output: Path = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
@@ -140,24 +147,21 @@ class KBlocksExtractor(Extractor):
                 "water",
             ],
             geometry_type="polygon",
-            overwrite=True,
+            overwrite=self.overwrite,
+            progress=self.progress,
         )
         gdf: GeoDataFrame = gpd.read_file(output)
         self._rename_columns(gdf)
-        self._gdf_to_parquet(gdf=gdf, fname=pbf.file_name, suffix="water")
+        gdf.to_parquet(self._make_output_path(pbf, "water"))
         output.unlink(missing_ok=True)
-        return gdf
 
-    def _gdf_to_parquet(
-        self, gdf: gpd.GeoDataFrame, fname: str, suffix: str = ""
-    ) -> None:
-
+    def _make_output_path(self, pbf: PBFFile, suffix: str = "") -> Path:
+        fname = pbf.file_name
         if suffix == "":
             fname = f"{fname}.parquet"
         else:
             fname = f"{fname}-{suffix}.parquet"
-
-        gdf.to_parquet(self.datadir.osm_parquet_dir / fname)
+        return self.datadir.osm_parquet_dir / fname
 
     @staticmethod
     def _rename_columns(gdf: gpd.GeoDataFrame) -> None:
