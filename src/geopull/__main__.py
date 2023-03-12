@@ -10,10 +10,11 @@ Created on 2022-12-29 08:48:17-05:00
 """
 import logging
 from argparse import ArgumentParser
+from multiprocessing import Pool
 
-from geopull.geofile import PBFFile
 from geopull.directories import DataDir
 from geopull.extractor import KBlocksExtractor
+from geopull.geofile import PBFFile
 
 logging.basicConfig(level=logging.INFO)
 
@@ -94,19 +95,27 @@ class GeoPullCLI:
                 except NotADirectoryError as e:
                     self.parser.error(str(e))
         elif self.args.subcommand == "extract":
-            extractor = KBlocksExtractor(datadir=DataDir(self.args.output_dir))
-            for country in self.args.country_list:
-                try:
-                    pbf_file = PBFFile(
-                        country.upper(), datadir=DataDir(self.args.output_dir)
+            extractor = KBlocksExtractor(
+                datadir=DataDir(self.args.output_dir),
+                overwrite=self.args.overwrite)
+            try:
+                with Pool() as pool:
+                    pool.map(
+                        extractor._extract_admin_levels,
+                        [
+                            PBFFile(
+                                country.upper(),
+                                datadir=DataDir(self.args.output_dir),
+                            )
+                            for country in self.args.country_list
+                        ],
                     )
-                    extractor.extract(pbf_file)
-                except KeyError as e:
-                    self.parser.error(str(e))
-                except FileNotFoundError as e:
-                    self.parser.error(str(e))
-                except NotADirectoryError as e:
-                    self.parser.error(str(e))
+            except KeyError as e:
+                self.parser.error(str(e))
+            except FileNotFoundError as e:
+                self.parser.error(str(e))
+            except NotADirectoryError as e:
+                self.parser.error(str(e))
 
         else:
             self.parser.print_usage()
