@@ -21,7 +21,7 @@ from geopull.geofile import GeoFile, PBFFile, load_country_codes
 
 @pytest.fixture(scope="class")
 def pbf_file() -> PBFFile:
-    return PBFFile("USA")
+    return PBFFile(country_code="USA")
 
 
 def test_load_country_codes():
@@ -48,7 +48,7 @@ class TestPBFFile:
 
     @staticmethod
     def test_init():
-        assert PBFFile("USA") == PBFFile("usa")
+        assert PBFFile(country_code="USA") == PBFFile(country_code="usa")
 
     @staticmethod
     def test_init_not_valid():
