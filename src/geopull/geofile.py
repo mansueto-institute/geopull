@@ -22,6 +22,9 @@ from tempfile import NamedTemporaryFile
 from typing import Any, ClassVar, Optional
 from urllib.request import urlretrieve
 
+import geopandas as gpd
+from geopandas import GeoDataFrame
+
 from geopull.directories import DataDir
 from geopull.tqdm_download import TqdmUpTo
 
@@ -51,18 +54,7 @@ class GeoFile(ABC):
         country_code (str): the country code
     """
 
-    country_code: str
-    _country_name: str = field(init=False)
-    _continent: str = field(init=False)
     datadir: DataDir = field(repr=False, default=DataDir("."))
-
-    def __post_init__(self):
-        self.country_code = self.country_code.upper()
-        if self.country_code not in COUNTRYMAP:
-            raise KeyError(f"{self.country_code} is not a valid country code")
-        self._country_name = COUNTRYMAP[self.country_code][0]
-        self._continent = COUNTRYMAP[self.country_code][1]
-        self._proper_name = COUNTRYMAP[self.country_code][2]
 
     @property
     @abstractmethod
@@ -84,6 +76,77 @@ class GeoFile(ABC):
         """
         Returns the local path.
         """
+
+    @property
+    @abstractmethod
+    def file_name(self) -> str:
+        """
+        Returns the file name without the suffix.
+        """
+
+    @abstractmethod
+    def download(self, overwrite: bool = False) -> Path:
+        """
+        Downloads the file.
+
+        Args:
+            overwrite (bool, optional): Overwrite existing files. Defaults to
+                False.
+
+        Returns:
+            Path: the path to the downloaded file
+        """
+
+    def _download_file_url(self, overwrite: bool = False) -> Path:
+        if self.local_path.exists() and not overwrite:
+            logger.warning(
+                "%s already exists, skipping download", self.local_path
+            )
+            return self.local_path
+
+        with TqdmUpTo(
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            miniters=1,
+            desc=self._download_url.rsplit("/", maxsplit=1)[-1],
+        ) as t:
+            urlretrieve(
+                self._download_url,
+                self.local_path,
+                reporthook=t.update_to,
+                data=None,
+            )
+            t.total = t.n
+
+        return self.local_path
+
+
+@dataclass
+class CountryGeoFile(GeoFile, ABC):
+    """GeoFile that corresponds to a single country.
+
+    This should map 1-to-1 with the country files available for download from
+    GeoFabrik.
+
+    Attributes:
+        country_code (str): the country code
+        continent (str): the continent
+        proper_name (str): the proper name of the country
+        file_name (str): the file name without the suffix
+    """
+
+    country_code: str = field(default="")
+    _country_name: str = field(init=False)
+    _continent: str = field(init=False)
+
+    def __post_init__(self):
+        self.country_code = self.country_code.upper()
+        if self.country_code not in COUNTRYMAP:
+            raise KeyError(f"{self.country_code} is not a valid country code")
+        self._country_name = COUNTRYMAP[self.country_code][0]
+        self._continent = COUNTRYMAP[self.country_code][1]
+        self._proper_name = COUNTRYMAP[self.country_code][2]
 
     @property
     def country_name(self) -> str:
@@ -125,22 +188,9 @@ class GeoFile(ABC):
         """
         return f"{self.country_code.lower()}-latest"
 
-    @abstractmethod
-    def download(self, overwrite: bool = False) -> Path:
-        """
-        Downloads the file.
-
-        Args:
-            overwrite (bool, optional): Overwrite existing files. Defaults to
-                False.
-
-        Returns:
-            Path: the path to the downloaded file
-        """
-
 
 @dataclass
-class PBFFile(GeoFile):
+class PBFFile(CountryGeoFile):
     """
     Class for representing a PBF file from the Geofabrik server.
 
@@ -188,28 +238,7 @@ class PBFFile(GeoFile):
         self.local_path.unlink(missing_ok=True)
 
     def download(self, overwrite: bool = False) -> Path:
-        if self.local_path.exists() and not overwrite:
-            logger.warning(
-                "%s already exists, skipping download", self.local_path
-            )
-            return self.local_path
-
-        with TqdmUpTo(
-            unit="B",
-            unit_scale=True,
-            unit_divisor=1024,
-            miniters=1,
-            desc=self._download_url.rsplit("/", maxsplit=1)[-1],
-        ) as t:
-            urlretrieve(
-                self._download_url,
-                self.local_path,
-                reporthook=t.update_to,
-                data=None,
-            )
-            t.total = t.n
-
-        return self.local_path
+        return self._download_file_url(overwrite=overwrite)
 
     def export(
         self,
@@ -333,3 +362,36 @@ class PBFFile(GeoFile):
             data["attributes"][attr] = True
 
         return data
+
+
+@dataclass
+class DaylightFile(GeoFile):
+    """A daylights coastline file"""
+
+    @property
+    def local_path(self) -> Path:
+        return self.datadir.daylight_dir.joinpath(
+            f"{self.file_name}.tar.gz"
+        ).resolve()
+
+    @property
+    def _base_url(self) -> str:
+        return (
+            "https://daylight-map-distribution.s3.us-west-1.amazonaws.com"
+            "/release/v1.23/coastlines-v1.23.tgz"
+        )
+
+    @property
+    def _download_url(self) -> str:
+        return self._base_url
+
+    @property
+    def file_name(self) -> str:
+        return "coastlines-latest"
+
+    def download(self, overwrite: bool = False) -> Path:
+        return self._download_file_url(overwrite=overwrite)
+
+    def get_water_polygons(self) -> GeoDataFrame:
+        """Loads the water polygons from the tar file."""
+        return gpd.read_file(f"tar://{self.local_path}!water_polygons.shp")
