@@ -60,7 +60,10 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): the PBF file to extract from.
         """
-        if self._make_output_path(pbf, "admin").exists():
+        if (
+            self._make_output_path(pbf, "admin").exists()
+            and not self.overwrite
+        ):
             logger.info("Admin levels already extracted for %s", pbf.file_name)
             return
 
@@ -77,10 +80,13 @@ class KBlocksExtractor(Extractor):
         gdf["admin_level"] = gdf["admin_level"].astype(int)
 
         admin_lvls = gdf["admin_level"].unique()
-        min_admin_lvl = admin_lvls[admin_lvls > 2].min()
+        if 4 in admin_lvls:
+            gdf = gdf[gdf["admin_level"] == 4]
+        else:
+            gdf = gdf[gdf["admin_level"] == 2]
 
-        gdf = gdf[gdf["admin_level"] == min_admin_lvl]
         self._rename_columns(gdf)
+        gdf = gdf.to_crs(4326)
         gdf.to_parquet(self._make_output_path(pbf, "admin"))
         output.unlink(missing_ok=True)
 
@@ -92,7 +98,10 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): The PBF file to extract from.
         """
-        if self._make_output_path(pbf, "linestring").exists():
+        if (
+            self._make_output_path(pbf, "linestring").exists()
+            and not self.overwrite
+        ):
             logger.info("Linestrings already extracted for %s", pbf.file_name)
             return
 
@@ -114,6 +123,7 @@ class KBlocksExtractor(Extractor):
         )
         gdf: GeoDataFrame = gpd.read_file(output)
         self._rename_columns(gdf)
+        gdf = gdf.to_crs(4326)
         gdf.to_parquet(self._make_output_path(pbf, "linestring"))
         output.unlink(missing_ok=True)
 
@@ -126,7 +136,10 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): The PBF file to extract from.
         """
-        if self._make_output_path(pbf, "water").exists():
+        if (
+            self._make_output_path(pbf, "water").exists()
+            and not self.overwrite
+        ):
             logger.info(
                 "Water features already extracted for %s", pbf.file_name
             )
@@ -152,6 +165,7 @@ class KBlocksExtractor(Extractor):
         )
         gdf: GeoDataFrame = gpd.read_file(output)
         self._rename_columns(gdf)
+        gdf = gdf.to_crs(4326)
         gdf.to_parquet(self._make_output_path(pbf, "water"))
         output.unlink(missing_ok=True)
 
