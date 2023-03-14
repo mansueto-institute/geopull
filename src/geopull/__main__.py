@@ -10,11 +10,12 @@ Created on 2022-12-29 08:48:17-05:00
 """
 import logging
 from argparse import ArgumentParser
-from multiprocessing import Pool
 
 from geopull.directories import DataDir
 from geopull.extractor import KBlocksExtractor
 from geopull.geofile import DaylightFile, PBFFile
+from geopull.normalizer import KBlocksNormalizer
+from geopull.orchestrator import Orchestrator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,6 +55,12 @@ class GeoPullCLI:
         )
         self._build_extract_parser()
 
+        self.normalize_parser = subparsers.add_parser(
+            name="normalize",
+            help="Normalize extracted data for blocking.",
+        )
+        self._build_normalize_parser()
+
         self.args = self.parser.parse_args()
 
     def main(self) -> None:
@@ -62,19 +69,15 @@ class GeoPullCLI:
         """
         if self.args.subcommand == "download":
             if self.args.filetype == "countries":
-                for country in self.args.country_list:
-                    try:
-                        pbf_file = PBFFile(
-                            country_code=country.upper(),
-                            datadir=DataDir(self.args.output_dir),
-                        )
-                        pbf_file.download(self.args.overwrite)
-                    except KeyError as e:
-                        self.parser.error(str(e))
-                    except FileNotFoundError as e:
-                        self.parser.error(str(e))
-                    except NotADirectoryError as e:
-                        self.parser.error(str(e))
+                orch = Orchestrator(self.args.country_list)
+                try:
+                    orch.download()
+                except KeyError as e:
+                    self.parser.error(str(e))
+                except FileNotFoundError as e:
+                    self.parser.error(str(e))
+                except NotADirectoryError as e:
+                    self.parser.error(str(e))
             elif self.args.filetype == "daylight":
                 dl = DaylightFile(datadir=DataDir(self.args.output_dir))
                 dl.download(self.args.overwrite)
@@ -99,21 +102,11 @@ class GeoPullCLI:
                     self.parser.error(str(e))
         elif self.args.subcommand == "extract":
             extractor = KBlocksExtractor(
-                datadir=DataDir(self.args.output_dir),
-                overwrite=self.args.overwrite,
+                datadir=DataDir(self.args.output_dir), progress=True
             )
+            orch = Orchestrator(self.args.country_list)
             try:
-                with Pool() as pool:
-                    pool.map(
-                        extractor._extract_admin_levels,
-                        [
-                            PBFFile(
-                                country_code=country.upper(),
-                                datadir=DataDir(self.args.output_dir),
-                            )
-                            for country in self.args.country_list
-                        ],
-                    )
+                orch.extract(extractor=extractor)
             except KeyError as e:
                 self.parser.error(str(e))
             except FileNotFoundError as e:
@@ -121,11 +114,17 @@ class GeoPullCLI:
             except NotADirectoryError as e:
                 self.parser.error(str(e))
 
+        elif self.args.subcommand == "normalize":
+            normalizer = KBlocksNormalizer(
+                datadir=DataDir(self.args.output_dir)
+            )
+            orch = Orchestrator(self.args.country_list)
+            orch.normalize(normalizer=normalizer)
+
         else:
             self.parser.print_usage()
 
     def _build_download_parser(self) -> None:
-
         subparsers = self.download_parser.add_subparsers(
             dest="filetype",
             help="Available files types to download",
@@ -147,6 +146,10 @@ class GeoPullCLI:
     def _build_extract_parser(self) -> None:
         self._add_country_args(self.extract_parser)
         self._add_io_args(self.extract_parser)
+
+    def _build_normalize_parser(self) -> None:
+        self._add_country_args(self.normalize_parser)
+        self._add_io_args(self.normalize_parser)
 
     def _build_export_parser(self) -> None:
         self.export_parser.add_argument(
