@@ -76,6 +76,7 @@ class KBlocksExtractor(Extractor):
             progress=self.progress,
         )
         gdf: GeoDataFrame = gpd.read_file(output)
+        gdf['iso3'] = pbf.country_code
         gdf = gdf[gdf["admin_level"].str.isnumeric()]
         gdf["admin_level"] = gdf["admin_level"].astype(int)
 
