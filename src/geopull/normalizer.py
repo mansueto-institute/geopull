@@ -1,5 +1,6 @@
 """Country normalizers"""
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
@@ -9,6 +10,8 @@ from geopandas.geodataframe import GeoDataFrame
 
 from geopull.directories import DataDir
 from geopull.geofile import DaylightFile
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -52,17 +55,26 @@ class KBlocksNormalizer(Normalizer):
         if hasattr(self, "_dldf"):
             return self._dldf
         else:
+            logger.info("Loading daylightmap GeoDataFrame...")
             self._dldf = DaylightFile(
                 datadir=self.datadir
             ).get_water_polygons()
             return self._dldf
 
     def check(self, gdf: GeoDataFrame) -> bool:
+        logger.info(
+            "Checking if %s needs to be normalized",
+            self._get_country_code(gdf),
+        )
         if np.all(gdf["admin_level"] == 4):
             return True
         return False
 
     def normalize(self, gdf: GeoDataFrame) -> GeoDataFrame:
+        logger.info(
+            "Checking if %s intersects with daylightmap",
+            self._get_country_code(gdf),
+        )
         intersected = gpd.sjoin(
             left_df=gdf,
             right_df=self.dldf,
@@ -71,6 +83,10 @@ class KBlocksNormalizer(Normalizer):
         )
         if len(intersected) == 0:
             return gdf
+        logger.info(
+            "Normalizing %s by removing maritime boundary and EEZ",
+            self._get_country_code(gdf),
+        )
         gdf = gpd.overlay(
             df1=gdf,
             df2=self.dldf,
@@ -79,3 +95,7 @@ class KBlocksNormalizer(Normalizer):
             make_valid=True,
         )
         return gdf
+
+    @staticmethod
+    def _get_country_code(gdf: GeoDataFrame) -> str:
+        return gdf["iso3"].iloc[0]
