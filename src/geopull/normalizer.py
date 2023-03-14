@@ -9,7 +9,7 @@ import numpy as np
 from geopandas.geodataframe import GeoDataFrame
 
 from geopull.directories import DataDir
-from geopull.geofile import DaylightFile
+from geopull.geofile import DaylightFile, FeatureFile
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class Normalizer(ABC):
     """Abstract class for normalizing a GeoDataFrame."""
 
     @abstractmethod
-    def check(self, gdf: GeoDataFrame) -> bool:
+    def check(self, ff: FeatureFile) -> bool:
         """Checks if the GeoDataFrame is normalized.
 
         Usually this is a binary check to test whether the file needs to
@@ -27,7 +27,7 @@ class Normalizer(ABC):
         """
 
     @abstractmethod
-    def normalize(self, gdf: GeoDataFrame) -> GeoDataFrame:
+    def normalize(self, ff: FeatureFile) -> GeoDataFrame:
         """Normalizes the GeoDataFrame."""
 
 
@@ -40,6 +40,7 @@ class KBlocksNormalizer(Normalizer):
     context, normalization means removing the maritime boundary and the
     exclusive economic zone from the country polygon. The normalization is
     done using coastline shapefiles from the daylightmap project.
+    Additionally all water polygons are removed from the country file.
     """
 
     datadir: DataDir = field(default=DataDir("."), repr=False)
@@ -54,46 +55,52 @@ class KBlocksNormalizer(Normalizer):
         """
         if hasattr(self, "_dldf"):
             return self._dldf
-        else:
-            logger.info("Loading daylightmap GeoDataFrame...")
-            self._dldf = DaylightFile(
-                datadir=self.datadir
-            ).get_water_polygons()
-            return self._dldf
+        logger.info("Loading daylightmap GeoDataFrame...")
+        self._dldf = DaylightFile(
+            datadir=self.datadir
+        ).get_water_polygons()
+        return self._dldf
 
-    def check(self, gdf: GeoDataFrame) -> bool:
-        logger.info(
-            "Checking if %s needs to be normalized",
-            self._get_country_code(gdf),
-        )
+    def check(self, ff: FeatureFile) -> bool:
+        logger.info("Checking if %s needs to be normalized", ff.country_code)
+        gdf = ff.read_file()
         if np.all(gdf["admin_level"] == 4):
             return True
         return False
 
-    def normalize(self, gdf: GeoDataFrame) -> GeoDataFrame:
+    def normalize(self, ff: FeatureFile) -> GeoDataFrame:
         logger.info(
-            "Checking if %s intersects with daylightmap",
-            self._get_country_code(gdf),
+            "Checking if %s intersects with daylightmap", ff.country_code
         )
+        gdf = ff.read_file()
         intersected = gpd.sjoin(
             left_df=gdf,
             right_df=self.dldf,
             predicate="intersects",
             how="inner",
         )
-        if len(intersected) == 0:
-            return gdf
-        logger.info(
-            "Normalizing %s by removing maritime boundary and EEZ",
-            self._get_country_code(gdf),
-        )
-        gdf = gpd.overlay(
-            df1=gdf,
-            df2=self.dldf,
-            how="difference",
-            keep_geom_type=True,
-            make_valid=True,
-        )
+        if len(intersected) > 0:
+            logger.info(
+                "Normalizing %s by removing maritime boundary and EEZ",
+                ff.country_code,
+            )
+            gdf = gpd.overlay(
+                df1=gdf,
+                df2=self.dldf,
+                how="difference",
+                keep_geom_type=True,
+                make_valid=True,
+            )
+
+        # logger.info("Removing water features from %s", ff.country_code)
+        # waterff = FeatureFile(ff.country_code, "water", datadir=self.datadir)
+        # gdf = gpd.overlay(
+        #     df1=gdf,
+        #     df2=waterff.read_file(),
+        #     how="difference",
+        #     keep_geom_type=True,
+        #     make_valid=True,
+        # )
         return gdf
 
     @staticmethod

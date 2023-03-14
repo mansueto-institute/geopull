@@ -9,7 +9,7 @@ import geopandas as gpd
 from geopandas import GeoDataFrame
 
 from geopull.directories import DataDir
-from geopull.geofile import PBFFile
+from geopull.geofile import FeatureFile, PBFFile
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class Extractor(ABC):
     progress: bool = False
 
     @abstractmethod
-    def extract(self, pbf: PBFFile) -> None:
+    def extract(self, pbf: PBFFile) -> list[FeatureFile]:
         """Extracts features from a PBF file.
 
         This method should be implemented by subclasses and it should contain
@@ -45,12 +45,14 @@ class KBlocksExtractor(Extractor):
         datadir (DataDir): the data directory.
     """
 
-    def extract(self, pbf: PBFFile) -> None:
-        self._extract_water_features(pbf)
-        self._extract_line_string(pbf)
-        self._extract_admin_levels(pbf)
+    def extract(self, pbf: PBFFile) -> list[FeatureFile]:
+        results = []
+        results.append(self._extract_water_features(pbf))
+        results.append(self._extract_line_string(pbf))
+        results.append(self._extract_admin_levels(pbf))
+        return results
 
-    def _extract_admin_levels(self, pbf: PBFFile) -> None:
+    def _extract_admin_levels(self, pbf: PBFFile) -> FeatureFile:
         """Extracts admin levels from a PBF file into a parquet file.
 
         Only the admin levels that are one level higher than 2 for the given
@@ -68,7 +70,7 @@ class KBlocksExtractor(Extractor):
                 "Admin levels already extracted for %s, skipping",
                 pbf.file_name,
             )
-            return
+            return FeatureFile(country_code=pbf.country_code, features="admin")
 
         logger.info("Extracting admin levels from %s", pbf.file_name)
         output: Path = pbf.export(
@@ -79,7 +81,7 @@ class KBlocksExtractor(Extractor):
             progress=self.progress,
         )
         gdf: GeoDataFrame = gpd.read_file(output)
-        gdf['iso3'] = pbf.country_code
+        gdf["iso3"] = pbf.country_code
         gdf = gdf[gdf["admin_level"].str.isnumeric()]
         gdf["admin_level"] = gdf["admin_level"].astype(int)
 
@@ -93,8 +95,9 @@ class KBlocksExtractor(Extractor):
         gdf = gdf.to_crs(4326)
         gdf.to_parquet(self._make_output_path(pbf, "admin"))
         output.unlink(missing_ok=True)
+        return FeatureFile(country_code=pbf.country_code, features="admin")
 
-    def _extract_line_string(self, pbf: PBFFile) -> None:
+    def _extract_line_string(self, pbf: PBFFile) -> FeatureFile:
         """Extracts line string features from a PBF file.
 
         These features are needed to create the blocks.
@@ -109,7 +112,9 @@ class KBlocksExtractor(Extractor):
             logger.warning(
                 "Linestrings already extracted for %s, skipping", pbf.file_name
             )
-            return
+            return FeatureFile(
+                country_code=pbf.country_code, features="linestring"
+            )
 
         logger.info("Extracting line strings from %s", pbf.file_name)
         output: Path = pbf.export(
@@ -132,8 +137,11 @@ class KBlocksExtractor(Extractor):
         gdf = gdf.to_crs(4326)
         gdf.to_parquet(self._make_output_path(pbf, "linestring"))
         output.unlink(missing_ok=True)
+        return FeatureFile(
+            country_code=pbf.country_code, features="linestring"
+        )
 
-    def _extract_water_features(self, pbf: PBFFile) -> None:
+    def _extract_water_features(self, pbf: PBFFile) -> FeatureFile:
         """Extracts water features from a PBF file.
 
         These features are needed to create the blocks as well since the
@@ -150,7 +158,7 @@ class KBlocksExtractor(Extractor):
                 "Water features already extracted for %s, skipping",
                 pbf.file_name,
             )
-            return
+            return FeatureFile(country_code=pbf.country_code, features="water")
 
         logger.info("Extracting water features from %s", pbf.file_name)
         output: Path = pbf.export(
@@ -175,6 +183,7 @@ class KBlocksExtractor(Extractor):
         gdf = gdf.to_crs(4326)
         gdf.to_parquet(self._make_output_path(pbf, "water"))
         output.unlink(missing_ok=True)
+        return FeatureFile(country_code=pbf.country_code, features="water")
 
     def _make_output_path(self, pbf: PBFFile, suffix: str = "") -> Path:
         fname = pbf.file_name

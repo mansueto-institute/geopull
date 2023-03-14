@@ -5,13 +5,12 @@ from dataclasses import dataclass
 from multiprocessing import Pool
 from typing import Callable, Iterable
 
-import geopandas as gpd
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 from geopull.directories import DataDir
 from geopull.extractor import Extractor
-from geopull.geofile import PBFFile
+from geopull.geofile import FeatureFile, PBFFile
 from geopull.normalizer import Normalizer
 
 logger = logging.getLogger(__name__)
@@ -20,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Orchestrator:
     """Orchestrates the geopull process."""
+
     countries: list[str]
     datadir: DataDir = DataDir(".")
 
@@ -45,12 +45,14 @@ class Orchestrator:
         Args:
             normalizer (Normalizer): the normalizer to use.
         """
-        files = self.datadir.osm_parquet_dir.glob("*admin.parquet")
-        for file in files:
-            gdf = gpd.read_parquet(file)
-            if not normalizer.check(gdf):
-                gdf = normalizer.normalize(gdf)
-                gdf.to_parquet(file)
+        feature_files = [
+            FeatureFile(country_code=country, features="admin")
+            for country in self.countries
+        ]
+        for ff in feature_files:
+            if not normalizer.check(ff):
+                gdf = normalizer.normalize(ff)
+                ff.write_file(gdf)
 
     def _pool_mapper(self, func: Callable, iterable: Iterable) -> None:
         ncpu = os.cpu_count()
