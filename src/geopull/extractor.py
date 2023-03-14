@@ -64,7 +64,10 @@ class KBlocksExtractor(Extractor):
             self._make_output_path(pbf, "admin").exists()
             and not self.overwrite
         ):
-            logger.info("Admin levels already extracted for %s", pbf.file_name)
+            logger.warning(
+                "Admin levels already extracted for %s, skipping",
+                pbf.file_name,
+            )
             return
 
         logger.info("Extracting admin levels from %s", pbf.file_name)
@@ -103,7 +106,9 @@ class KBlocksExtractor(Extractor):
             self._make_output_path(pbf, "linestring").exists()
             and not self.overwrite
         ):
-            logger.info("Linestrings already extracted for %s", pbf.file_name)
+            logger.warning(
+                "Linestrings already extracted for %s, skipping", pbf.file_name
+            )
             return
 
         logger.info("Extracting line strings from %s", pbf.file_name)
@@ -141,8 +146,9 @@ class KBlocksExtractor(Extractor):
             self._make_output_path(pbf, "water").exists()
             and not self.overwrite
         ):
-            logger.info(
-                "Water features already extracted for %s", pbf.file_name
+            logger.warning(
+                "Water features already extracted for %s, skipping",
+                pbf.file_name,
             )
             return
 
