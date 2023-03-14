@@ -56,9 +56,7 @@ class KBlocksNormalizer(Normalizer):
         if hasattr(self, "_dldf"):
             return self._dldf
         logger.info("Loading daylightmap GeoDataFrame...")
-        self._dldf = DaylightFile(
-            datadir=self.datadir
-        ).get_water_polygons()
+        self._dldf = DaylightFile(datadir=self.datadir).get_water_polygons()
         return self._dldf
 
     def check(self, ff: FeatureFile) -> bool:
