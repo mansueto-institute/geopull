@@ -140,20 +140,12 @@ class GeoPullCLI:
             "countries", help="Download country data"
         )
 
-        country_parser.add_argument(
-            "country_list",
-            metavar="country-list",
-            nargs="+",
-            help=(
-                "Space-delimited list of country codes following ISO 3166-1 "
-                "alpha-3 format"
-            ),
-            type=str,
-        )
+        self._add_country_args(country_parser)
         self._add_io_args(dlparser)
         self._add_io_args(country_parser)
 
     def _build_extract_parser(self) -> None:
+        self._add_country_args(self.extract_parser)
         self._add_io_args(self.extract_parser)
 
     def _build_export_parser(self) -> None:
@@ -178,7 +170,7 @@ class GeoPullCLI:
             default=None,
             help="Geometry type to export",
         )
-
+        self._add_country_args(self.export_parser)
         self._add_io_args(self.export_parser)
 
     def _add_io_args(self, parser: ArgumentParser) -> None:
@@ -199,6 +191,18 @@ class GeoPullCLI:
             action="store_true",
             help="Overwrite existing files",
             default=False,
+        )
+
+    def _add_country_args(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
+            "country_list",
+            metavar="country-list",
+            nargs="+",
+            help=(
+                "Space-delimited list of country codes following ISO 3166-1 "
+                "alpha-3 format"
+            ),
+            type=str,
         )
 
 
