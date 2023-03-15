@@ -195,6 +195,50 @@ class CountryGeoFile(GeoFile, ABC):
 
 
 @dataclass
+class ParquetFeatureFile(CountryGeoFile):
+    features: str
+    allowed_features: ClassVar[set[str]] = {"admin", "water", "linestring"}
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.features not in self.allowed_features:
+            raise ValueError(
+                f"features must be one of {self.allowed_features}"
+            )
+
+    @property
+    def local_path(self) -> Path:
+        return self.datadir.osm_parquet_dir.joinpath(
+            f"{self.file_name}-{self.features}.parquet"
+        ).resolve()
+
+    def read_file(self) -> GeoDataFrame:
+        return gpd.read_parquet(self.local_path)
+
+    def write_file(self, gdf: GeoDataFrame) -> None:
+        gdf.to_parquet(self.local_path)
+
+
+@dataclass
+class GeoJSONFeatureFile(CountryGeoFile):
+    target: Path
+
+    @property
+    def local_path(self) -> Path:
+        return self.target
+
+    def read_file(self) -> GeoDataFrame:
+        return gpd.read_file(self.local_path)
+
+    def write_file(self, gdf: GeoDataFrame) -> None:
+        gdf.to_file(self.local_path, driver="GeoJSON")
+
+    @classmethod
+    def from_export(cls, pbf: PBFFile, path: Path) -> GeoJSONFeatureFile:
+        return cls(country_code=pbf.country_code, target=path)
+
+
+@dataclass
 class PBFFile(CountryGeoFile, DownloadableGeoFile):
     """
     Class for representing a PBF file from the Geofabrik server.
@@ -400,28 +444,3 @@ class DaylightFile(DownloadableGeoFile):
     def get_water_polygons(self) -> GeoDataFrame:
         """Loads the water polygons from the tar file."""
         return gpd.read_file(f"tar://{self.local_path}!water_polygons.shp")
-
-
-@dataclass
-class FeatureFile(CountryGeoFile):
-    features: str
-    allowed_features: ClassVar[set[str]] = {"admin", "water", "linestring"}
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        if self.features not in self.allowed_features:
-            raise ValueError(
-                f"features must be one of {self.allowed_features}"
-            )
-
-    @property
-    def local_path(self) -> Path:
-        return self.datadir.osm_parquet_dir.joinpath(
-            f"{self.file_name}-{self.features}.parquet"
-        ).resolve()
-
-    def read_file(self) -> GeoDataFrame:
-        return gpd.read_parquet(self.local_path)
-
-    def write_file(self, gdf: GeoDataFrame) -> None:
-        gdf.to_parquet(self.local_path)
