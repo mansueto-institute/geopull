@@ -296,7 +296,8 @@ class PBFFile(CountryGeoFile, DownloadableGeoFile):
         geometry_type: Optional[str] = None,
         overwrite: bool = False,
         progress: bool = True,
-    ) -> Path:
+        suffix: Optional[str] = None,
+    ) -> GeoJSONFeatureFile:
         """
         Exports the PBF file to the specified path as a GeoJSON file.
 
@@ -310,17 +311,17 @@ class PBFFile(CountryGeoFile, DownloadableGeoFile):
                 exported.
             overwrite (bool, optional): Overwrite existing files. Defaults to
                 False.
+            progress (bool, optional): Show progress. Defaults to True.
+            suffix (Optional[str], optional): Suffix to add to the file name.
+                Defaults to None.
 
         Returns:
             Path: the path to the exported file in the local machine
         """
         logger.info("Exporting (%s, %s)", self.country_code, self.proper_name)
-        source = self.datadir.osm_pbf_dir.joinpath(
-            f"{self.file_name}.osm.pbf"
-        ).resolve()
-        if not source.exists():
+        if not self.local_path.exists():
             raise FileNotFoundError(
-                f"{source} does not exist, download it first"
+                f"{self.local_path} does not exist, download it first"
             )
 
         osmium_args = [
@@ -336,19 +337,15 @@ class PBFFile(CountryGeoFile, DownloadableGeoFile):
         else:
             osmium_args.append("--no-progress")
 
-        if geometry_type is not None:
-            osmium_args.append(f"--geometry-type={geometry_type}")
-            target = self.datadir.osm_geojson_dir.joinpath(
-                f"{self.file_name}-{geometry_type}.geojson"
-            )
-        else:
-            target = self.datadir.osm_geojson_dir.joinpath(
-                f"{self.file_name}.geojson"
-            )
-        target = target.resolve()
+        target = self._make_export_path(
+            geometry_type=geometry_type, suffix=suffix
+        )
         if target.exists() and not overwrite:
             logger.warning("%s already exists, skipping export", target)
-            return target
+            return GeoJSONFeatureFile.from_export(self, target)
+
+        if geometry_type is not None:
+            osmium_args.append(f"--geometry-type={geometry_type}")
 
         osmium_args.extend(["-o", str(target)])
 
@@ -358,13 +355,34 @@ class PBFFile(CountryGeoFile, DownloadableGeoFile):
         tmpfile.flush()
 
         osmium_args.extend(["-c", tmpfile.name])
-        osmium_args.append(str(source))
+        osmium_args.append(str(self.local_path))
 
         run(osmium_args, check=True)
         tmpfile.close()
         Path(tmpfile.name).unlink()
 
-        return target
+        return GeoJSONFeatureFile.from_export(self, target)
+
+    def _make_export_path(
+        self, geometry_type: Optional[str], suffix: Optional[str] = None
+    ) -> Path:
+        """
+        Makes the path to the exported file.
+
+        Args:
+            geometry_type (Optional[str], optional): the OSM geometry type.
+                Defaults to None.
+            suffix (Optional[str], optional): Suffix to add to the file name.
+                Defaults to None.
+
+        Returns:
+            Path: the path to the exported file
+        """
+        parts = (self.file_name, geometry_type, suffix)
+        nameparts = (part for part in parts if part is not None)
+        return self.datadir.osm_geojson_dir.joinpath(
+            "-".join(nameparts) + ".geojson"
+        )
 
     @staticmethod
     def _change_path_suffix(path: Path, suffix: str) -> Path:
