@@ -1,15 +1,14 @@
-"""Extractor module."""
+"""Extractor module.
+
+Contains extractor recipes for extracting features from OSM PBF files.
+"""
 
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from pathlib import Path
-
-import geopandas as gpd
-from geopandas import GeoDataFrame
 
 from geopull.directories import DataDir
-from geopull.geofile import FeatureFile, PBFFile
+from geopull.geofile import GeoJSONFeatureFile, PBFFile
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class Extractor(ABC):
     progress: bool = False
 
     @abstractmethod
-    def extract(self, pbf: PBFFile) -> list[FeatureFile]:
+    def extract(self, pbf: PBFFile) -> list[GeoJSONFeatureFile]:
         """Extracts features from a PBF file.
 
         This method should be implemented by subclasses and it should contain
@@ -45,14 +44,14 @@ class KBlocksExtractor(Extractor):
         datadir (DataDir): the data directory.
     """
 
-    def extract(self, pbf: PBFFile) -> list[FeatureFile]:
+    def extract(self, pbf: PBFFile) -> list[GeoJSONFeatureFile]:
         results = []
-        results.append(self._extract_water_features(pbf))
-        results.append(self._extract_line_string(pbf))
-        results.append(self._extract_admin_levels(pbf))
+        results.append(self._extract_water(pbf))
+        results.append(self._extract_linestring(pbf))
+        results.append(self._extract_admin(pbf))
         return results
 
-    def _extract_admin_levels(self, pbf: PBFFile) -> FeatureFile:
+    def _extract_admin(self, pbf: PBFFile) -> GeoJSONFeatureFile:
         """Extracts admin levels from a PBF file into a parquet file.
 
         Only the admin levels that are one level higher than 2 for the given
@@ -62,42 +61,33 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): the PBF file to extract from.
         """
-        if (
-            self._make_output_path(pbf, "admin").exists()
-            and not self.overwrite
-        ):
-            logger.warning(
-                "Admin levels already extracted for %s, skipping",
-                pbf.file_name,
-            )
-            return FeatureFile(country_code=pbf.country_code, features="admin")
-
-        logger.info("Extracting admin levels from %s", pbf.file_name)
-        output: Path = pbf.export(
+        return pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=["admin_level"],
             geometry_type="polygon",
             overwrite=self.overwrite,
             progress=self.progress,
+            suffix="admin",
         )
-        gdf: GeoDataFrame = gpd.read_file(output)
-        gdf["iso3"] = pbf.country_code
-        gdf = gdf[gdf["admin_level"].str.isnumeric()]
-        gdf["admin_level"] = gdf["admin_level"].astype(int)
 
-        admin_lvls = gdf["admin_level"].unique()
-        if 4 in admin_lvls:
-            gdf = gdf[gdf["admin_level"] == 4]
-        else:
-            gdf = gdf[gdf["admin_level"] == 2]
+        # gdf: GeoDataFrame = gpd.read_file(output)
+        # gdf["iso3"] = pbf.country_code
+        # gdf = gdf[gdf["admin_level"].str.isnumeric()]
+        # gdf["admin_level"] = gdf["admin_level"].astype(int)
 
-        self._rename_columns(gdf)
-        gdf = gdf.to_crs(4326)
-        gdf.to_parquet(self._make_output_path(pbf, "admin"))
-        output.unlink(missing_ok=True)
-        return FeatureFile(country_code=pbf.country_code, features="admin")
+        # admin_lvls = gdf["admin_level"].unique()
+        # if 4 in admin_lvls:
+        #     gdf = gdf[gdf["admin_level"] == 4]
+        # else:
+        #     gdf = gdf[gdf["admin_level"] == 2]
 
-    def _extract_line_string(self, pbf: PBFFile) -> FeatureFile:
+        # self._rename_columns(gdf)
+        # gdf = gdf.to_crs(4326)
+        # gdf.to_parquet(self._make_output_path(pbf, "admin"))
+        # output.unlink(missing_ok=True)
+        # return GeoJSONFeatureFile(country_code=pbf.country_code, features="admin")
+
+    def _extract_linestring(self, pbf: PBFFile) -> GeoJSONFeatureFile:
         """Extracts line string features from a PBF file.
 
         These features are needed to create the blocks.
@@ -105,19 +95,7 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): The PBF file to extract from.
         """
-        if (
-            self._make_output_path(pbf, "linestring").exists()
-            and not self.overwrite
-        ):
-            logger.warning(
-                "Linestrings already extracted for %s, skipping", pbf.file_name
-            )
-            return FeatureFile(
-                country_code=pbf.country_code, features="linestring"
-            )
-
-        logger.info("Extracting line strings from %s", pbf.file_name)
-        output: Path = pbf.export(
+        return pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural",
@@ -131,17 +109,18 @@ class KBlocksExtractor(Extractor):
             geometry_type="linestring",
             overwrite=self.overwrite,
             progress=self.progress,
+            suffix="linestring",
         )
-        gdf: GeoDataFrame = gpd.read_file(output)
-        self._rename_columns(gdf)
-        gdf = gdf.to_crs(4326)
-        gdf.to_parquet(self._make_output_path(pbf, "linestring"))
-        output.unlink(missing_ok=True)
-        return FeatureFile(
-            country_code=pbf.country_code, features="linestring"
-        )
+        # gdf: GeoDataFrame = gpd.read_file(output)
+        # self._rename_columns(gdf)
+        # gdf = gdf.to_crs(4326)
+        # gdf.to_parquet(self._make_output_path(pbf, "linestring"))
+        # output.unlink(missing_ok=True)
+        # return GeoJSONFeatureFile(
+        #     country_code=pbf.country_code, features="linestring"
+        # )
 
-    def _extract_water_features(self, pbf: PBFFile) -> FeatureFile:
+    def _extract_water(self, pbf: PBFFile) -> GeoJSONFeatureFile:
         """Extracts water features from a PBF file.
 
         These features are needed to create the blocks as well since the
@@ -150,18 +129,7 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): The PBF file to extract from.
         """
-        if (
-            self._make_output_path(pbf, "water").exists()
-            and not self.overwrite
-        ):
-            logger.warning(
-                "Water features already extracted for %s, skipping",
-                pbf.file_name,
-            )
-            return FeatureFile(country_code=pbf.country_code, features="water")
-
-        logger.info("Extracting water features from %s", pbf.file_name)
-        output: Path = pbf.export(
+        return pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural=water",
@@ -177,22 +145,15 @@ class KBlocksExtractor(Extractor):
             geometry_type="polygon",
             overwrite=self.overwrite,
             progress=self.progress,
+            suffix="water",
         )
-        gdf: GeoDataFrame = gpd.read_file(output)
-        self._rename_columns(gdf)
-        gdf = gdf.to_crs(4326)
-        gdf.to_parquet(self._make_output_path(pbf, "water"))
-        output.unlink(missing_ok=True)
-        return FeatureFile(country_code=pbf.country_code, features="water")
+        # gdf: GeoDataFrame = gpd.read_file(output)
+        # self._rename_columns(gdf)
+        # gdf = gdf.to_crs(4326)
+        # gdf.to_parquet(self._make_output_path(pbf, "water"))
+        # output.unlink(missing_ok=True)
+        # return GeoJSONFeatureFile(country_code=pbf.country_code, features="water")
 
-    def _make_output_path(self, pbf: PBFFile, suffix: str = "") -> Path:
-        fname = pbf.file_name
-        if suffix == "":
-            fname = f"{fname}.parquet"
-        else:
-            fname = f"{fname}-{suffix}.parquet"
-        return self.datadir.osm_parquet_dir / fname
-
-    @staticmethod
-    def _rename_columns(gdf: gpd.GeoDataFrame) -> None:
-        gdf.columns = gdf.columns.str.replace("@", "")
+    # @staticmethod
+    # def _rename_columns(gdf: gpd.GeoDataFrame) -> None:
+    #     gdf.columns = gdf.columns.str.replace("@", "")
