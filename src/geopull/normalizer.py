@@ -9,7 +9,11 @@ import numpy as np
 from geopandas.geodataframe import GeoDataFrame
 
 from geopull.directories import DataDir
-from geopull.geofile import DaylightFile, FeatureFile
+from geopull.geofile import (
+    DaylightFile,
+    GeoJSONFeatureFile,
+    ParquetFeatureFile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,21 +23,13 @@ class Normalizer(ABC):
     """Abstract class for normalizing a GeoDataFrame."""
 
     @abstractmethod
-    def check(self, ff: FeatureFile) -> bool:
-        """Checks if the GeoDataFrame is normalized.
-
-        Usually this is a binary check to test whether the file needs to
-        be further normalized.
-        """
-
-    @abstractmethod
-    def normalize(self, ff: FeatureFile) -> GeoDataFrame:
+    def normalize(self, **kwargs) -> GeoDataFrame:
         """Normalizes the GeoDataFrame."""
 
 
 @dataclass
-class KBlocksNormalizer(Normalizer):
-    """A KBlocks normalizer.
+class GeopullNormalizer(Normalizer):
+    """A Geopull normalizer.
 
     Normalization has to do with the admin levels. If the OSM file has no
     admin_level=4 features, then the file must be normalized. Within this
@@ -55,22 +51,48 @@ class KBlocksNormalizer(Normalizer):
         """
         if hasattr(self, "_dldf"):
             return self._dldf
-        logger.info("Loading daylightmap GeoDataFrame...")
         self._dldf = DaylightFile(datadir=self.datadir).get_water_polygons()
         return self._dldf
 
-    def check(self, ff: FeatureFile) -> bool:
-        logger.info("Checking if %s needs to be normalized", ff.country_code)
-        gdf = ff.read_file()
-        if np.all(gdf["admin_level"] == 4):
-            return True
-        return False
+    def normalize(self, **kwargs) -> None:
+        admin: GeoJSONFeatureFile = kwargs["admin"]
+        water: GeoJSONFeatureFile = kwargs["water"]
+        linestring: GeoJSONFeatureFile = kwargs["linestring"]
 
-    def normalize(self, ff: FeatureFile) -> GeoDataFrame:
         logger.info(
-            "Checking if %s intersects with daylightmap", ff.country_code
+            "Checking if %s intersects with daylightmap", admin.country_code
         )
-        gdf = ff.read_file()
+
+        self._normalize_admin(admin)
+
+        if admin.gdf["admin_level"].min() == 2:
+            self._normalize_coastline(admin)
+        self._normalize_water(admin, water)
+
+        adminp = ParquetFeatureFile(admin.country_code, "admin")
+        adminp.write_file(admin.gdf)
+
+        adminpd = ParquetFeatureFile(admin.country_code, "admin-dissolved")
+        adminpd.write_file(admin.gdf.dissolve())
+
+        linesp = ParquetFeatureFile(linestring.country_code, "linestring")
+        linesp.write_file(linestring.gdf)
+
+    def _normalize_admin(self, admin: GeoJSONFeatureFile):
+        gdf = admin.gdf
+        gdf["iso3"] = admin.country_code
+        gdf = gdf[gdf["admin_level"].str.isnumeric()]
+        gdf["admin_level"] = gdf["admin_level"].astype(int)
+
+        admin_lvls = gdf["admin_level"].unique()
+        if 4 in admin_lvls:
+            gdf = gdf[gdf["admin_level"] == 4]
+        else:
+            gdf = gdf[gdf["admin_level"] == 2]
+        admin.gdf = gdf
+
+    def _normalize_coastline(self, admin: GeoJSONFeatureFile) -> None:
+        gdf = admin.gdf
         intersected = gpd.sjoin(
             left_df=gdf,
             right_df=self.dldf,
@@ -80,7 +102,7 @@ class KBlocksNormalizer(Normalizer):
         if len(intersected) > 0:
             logger.info(
                 "Normalizing %s by removing maritime boundary and EEZ",
-                ff.country_code,
+                admin.country_code,
             )
             gdf = gpd.overlay(
                 df1=gdf,
@@ -89,18 +111,22 @@ class KBlocksNormalizer(Normalizer):
                 keep_geom_type=True,
                 make_valid=True,
             )
+        admin.gdf = gdf
 
-        # logger.info("Removing water features from %s", ff.country_code)
-        # waterff = FeatureFile(ff.country_code, "water", datadir=self.datadir)
-        # gdf = gpd.overlay(
-        #     df1=gdf,
-        #     df2=waterff.read_file(),
-        #     how="difference",
-        #     keep_geom_type=True,
-        #     make_valid=True,
-        # )
-        return gdf
+    def _normalize_water(
+        self, admin: GeoJSONFeatureFile, water: GeoJSONFeatureFile
+    ):
+        logger.info("Removing water features from %s", admin.country_code)
+        admin_gdf = admin.gdf
+        water_gdf = water.gdf
+        logger.info("Dissolving water features from %s", admin.country_code)
+        water_gdf = water_gdf.dissolve()
 
-    @staticmethod
-    def _get_country_code(gdf: GeoDataFrame) -> str:
-        return gdf["iso3"].iloc[0]
+        gdf = gpd.overlay(
+            df1=admin_gdf,
+            df2=water_gdf,
+            how="difference",
+            keep_geom_type=True,
+            make_valid=True,
+        )
+        admin.gdf = gdf

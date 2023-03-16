@@ -12,9 +12,9 @@ import logging
 from argparse import ArgumentParser
 
 from geopull.directories import DataDir
-from geopull.extractor import KBlocksExtractor
+from geopull.extractor import GeopullExtractor
 from geopull.geofile import DaylightFile, PBFFile
-from geopull.normalizer import KBlocksNormalizer
+from geopull.normalizer import GeopullNormalizer
 from geopull.orchestrator import Orchestrator
 
 logging.basicConfig(level=logging.INFO)
@@ -101,7 +101,7 @@ class GeoPullCLI:
                 except NotADirectoryError as e:
                     self.parser.error(str(e))
         elif self.args.subcommand == "extract":
-            extractor = KBlocksExtractor(
+            extractor = GeopullExtractor(
                 datadir=DataDir(self.args.output_dir), progress=True
             )
             orch = Orchestrator(self.args.country_list)
@@ -115,7 +115,7 @@ class GeoPullCLI:
                 self.parser.error(str(e))
 
         elif self.args.subcommand == "normalize":
-            normalizer = KBlocksNormalizer(
+            normalizer = GeopullNormalizer(
                 datadir=DataDir(self.args.output_dir)
             )
             orch = Orchestrator(self.args.country_list)

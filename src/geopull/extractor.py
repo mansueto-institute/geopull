@@ -34,11 +34,11 @@ class Extractor(ABC):
 
 
 @dataclass
-class KBlocksExtractor(Extractor):
+class GeopullExtractor(Extractor):
     """Extracts features from a PBF file. Useful for saving recipes
 
     Each extraction pipeline can be an instance of an extractor. In this case
-    the only one is used for the kblocks process.
+    the only one is used for the Geopull process.
 
     Attributes:
         datadir (DataDir): the data directory.
@@ -61,7 +61,7 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): the PBF file to extract from.
         """
-        return pbf.export(
+        output = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=["admin_level"],
             geometry_type="polygon",
@@ -69,23 +69,8 @@ class KBlocksExtractor(Extractor):
             progress=self.progress,
             suffix="admin",
         )
+        return GeoJSONFeatureFile.from_path(output)
 
-        # gdf: GeoDataFrame = gpd.read_file(output)
-        # gdf["iso3"] = pbf.country_code
-        # gdf = gdf[gdf["admin_level"].str.isnumeric()]
-        # gdf["admin_level"] = gdf["admin_level"].astype(int)
-
-        # admin_lvls = gdf["admin_level"].unique()
-        # if 4 in admin_lvls:
-        #     gdf = gdf[gdf["admin_level"] == 4]
-        # else:
-        #     gdf = gdf[gdf["admin_level"] == 2]
-
-        # self._rename_columns(gdf)
-        # gdf = gdf.to_crs(4326)
-        # gdf.to_parquet(self._make_output_path(pbf, "admin"))
-        # output.unlink(missing_ok=True)
-        # return GeoJSONFeatureFile(country_code=pbf.country_code, features="admin")
 
     def _extract_linestring(self, pbf: PBFFile) -> GeoJSONFeatureFile:
         """Extracts line string features from a PBF file.
@@ -95,7 +80,7 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): The PBF file to extract from.
         """
-        return pbf.export(
+        output = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural",
@@ -111,14 +96,7 @@ class KBlocksExtractor(Extractor):
             progress=self.progress,
             suffix="linestring",
         )
-        # gdf: GeoDataFrame = gpd.read_file(output)
-        # self._rename_columns(gdf)
-        # gdf = gdf.to_crs(4326)
-        # gdf.to_parquet(self._make_output_path(pbf, "linestring"))
-        # output.unlink(missing_ok=True)
-        # return GeoJSONFeatureFile(
-        #     country_code=pbf.country_code, features="linestring"
-        # )
+        return GeoJSONFeatureFile.from_path(output)
 
     def _extract_water(self, pbf: PBFFile) -> GeoJSONFeatureFile:
         """Extracts water features from a PBF file.
@@ -129,7 +107,7 @@ class KBlocksExtractor(Extractor):
         Args:
             pbf (PBFFile): The PBF file to extract from.
         """
-        return pbf.export(
+        output = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural=water",
@@ -147,13 +125,4 @@ class KBlocksExtractor(Extractor):
             progress=self.progress,
             suffix="water",
         )
-        # gdf: GeoDataFrame = gpd.read_file(output)
-        # self._rename_columns(gdf)
-        # gdf = gdf.to_crs(4326)
-        # gdf.to_parquet(self._make_output_path(pbf, "water"))
-        # output.unlink(missing_ok=True)
-        # return GeoJSONFeatureFile(country_code=pbf.country_code, features="water")
-
-    # @staticmethod
-    # def _rename_columns(gdf: gpd.GeoDataFrame) -> None:
-    #     gdf.columns = gdf.columns.str.replace("@", "")
+        return GeoJSONFeatureFile.from_path(output)

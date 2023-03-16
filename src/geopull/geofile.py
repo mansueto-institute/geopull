@@ -195,9 +195,35 @@ class CountryGeoFile(GeoFile, ABC):
 
 
 @dataclass
-class ParquetFeatureFile(CountryGeoFile):
+class FeatureFile(CountryGeoFile, ABC):
+    _gdf: Optional[GeoDataFrame] = field(init=False, default=None)
+
+    @property
+    def gdf(self) -> GeoDataFrame:
+        if self._gdf is None:
+            self._gdf = self.read_file()
+        return self._gdf
+
+    @gdf.setter
+    def gdf(self, value: GeoDataFrame):
+        self._gdf = value
+
+    @abstractmethod
+    def read_file(self) -> GeoDataFrame:
+        """
+        Reads the file.
+        """
+
+
+@dataclass
+class ParquetFeatureFile(FeatureFile):
     features: str
-    allowed_features: ClassVar[set[str]] = {"admin", "water", "linestring"}
+    allowed_features: ClassVar[set[str]] = {
+        "admin",
+        "admin-dissolved",
+        "water",
+        "linestring",
+    }
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -213,29 +239,54 @@ class ParquetFeatureFile(CountryGeoFile):
         ).resolve()
 
     def read_file(self) -> GeoDataFrame:
+        logger.info("Reading parquet features: %s", self.local_path)
         return gpd.read_parquet(self.local_path)
 
     def write_file(self, gdf: GeoDataFrame) -> None:
+        logger.info("Writing parquet features: %s", self.local_path)
+        gdf = gdf.to_crs(4326)
         gdf.to_parquet(self.local_path)
 
 
 @dataclass
-class GeoJSONFeatureFile(CountryGeoFile):
-    target: Path
+class GeoJSONFeatureFile(FeatureFile):
+    geometry_type: str
+    suffix: str
 
     @property
     def local_path(self) -> Path:
-        return self.target
+        return self.datadir.osm_geojson_dir.joinpath(
+            f"{self.file_name}-{self.geometry_type}-{self.suffix}.geojson"
+        )
 
     def read_file(self) -> GeoDataFrame:
+        logger.info("Reading GeoJSON features: %s", self.local_path)
         return gpd.read_file(self.local_path)
 
     def write_file(self, gdf: GeoDataFrame) -> None:
+        logger.info("Writing GeoJSON features: %s", self.local_path)
         gdf.to_file(self.local_path, driver="GeoJSON")
 
     @classmethod
-    def from_export(cls, pbf: PBFFile, path: Path) -> GeoJSONFeatureFile:
-        return cls(country_code=pbf.country_code, target=path)
+    def from_path(cls, path: Path) -> GeoJSONFeatureFile:
+        """
+        Creates a GeoJSONFeatureFile from a path.
+
+        Args:
+            path (Path): the path
+
+        Returns:
+            GeoJSONFeatureFile: the GeoJSONFeatureFile
+        """
+        splitted = path.stem.split("-")
+        country_code = splitted[0]
+        geometry_type = splitted[2]
+        suffix = splitted[-1]
+        return cls(
+            country_code=country_code,
+            geometry_type=geometry_type,
+            suffix=suffix,
+        )
 
 
 @dataclass
@@ -297,7 +348,7 @@ class PBFFile(CountryGeoFile, DownloadableGeoFile):
         overwrite: bool = False,
         progress: bool = True,
         suffix: Optional[str] = None,
-    ) -> GeoJSONFeatureFile:
+    ) -> Path:
         """
         Exports the PBF file to the specified path as a GeoJSON file.
 
@@ -342,7 +393,7 @@ class PBFFile(CountryGeoFile, DownloadableGeoFile):
         )
         if target.exists() and not overwrite:
             logger.warning("%s already exists, skipping export", target)
-            return GeoJSONFeatureFile.from_export(self, target)
+            return target
 
         if geometry_type is not None:
             osmium_args.append(f"--geometry-type={geometry_type}")
@@ -361,7 +412,7 @@ class PBFFile(CountryGeoFile, DownloadableGeoFile):
         tmpfile.close()
         Path(tmpfile.name).unlink()
 
-        return GeoJSONFeatureFile.from_export(self, target)
+        return target
 
     def _make_export_path(
         self, geometry_type: Optional[str], suffix: Optional[str] = None
@@ -457,7 +508,7 @@ class DaylightFile(DownloadableGeoFile):
         return "coastlines-latest"
 
     def download(self, overwrite: bool = False) -> Path:
-        return self._download_file_url(overwrite=overwrite)
+        path = self._download_file_url(overwrite=overwrite)
 
     def get_water_polygons(self) -> GeoDataFrame:
         """Loads the water polygons from the tar file."""
