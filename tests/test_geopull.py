@@ -30,3 +30,15 @@ def test_import_tqdm_download():
 
 def test_import_cli():
     import geopull.__main__  # noqa: F401
+
+
+def test_import_orchestrator():
+    import geopull.orchestrator  # noqa: F401
+
+
+def test_import_extractor():
+    import geopull.extractor  # noqa: F401
+
+
+def test_import_normalizer():
+    import geopull.normalizer  # noqa: F401

@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 import geopandas as gpd
-import numpy as np
 from geopandas.geodataframe import GeoDataFrame
 
 from geopull.directories import DataDir
@@ -41,18 +40,6 @@ class GeopullNormalizer(Normalizer):
 
     datadir: DataDir = field(default=DataDir("."), repr=False)
     _dldf: GeoDataFrame = field(init=False, repr=False)
-
-    @property
-    def dldf(self) -> GeoDataFrame:
-        """Returns the daylightmap GeoDataFrame.
-
-        If the daylightmap GeoDataFrame has already been loaded into memory,
-        then it is returned. Otherwise, it is loaded and then returned.
-        """
-        if hasattr(self, "_dldf"):
-            return self._dldf
-        self._dldf = DaylightFile(datadir=self.datadir).get_water_polygons()
-        return self._dldf
 
     def normalize(self, **kwargs) -> None:
         admin: GeoJSONFeatureFile = kwargs["admin"]
@@ -93,9 +80,10 @@ class GeopullNormalizer(Normalizer):
 
     def _normalize_coastline(self, admin: GeoJSONFeatureFile) -> None:
         gdf = admin.gdf
+        dldf = self._get_coastlines(admin)
         intersected = gpd.sjoin(
             left_df=gdf,
-            right_df=self.dldf,
+            right_df=dldf,
             predicate="intersects",
             how="inner",
         )
@@ -106,7 +94,7 @@ class GeopullNormalizer(Normalizer):
             )
             gdf = gpd.overlay(
                 df1=gdf,
-                df2=self.dldf,
+                df2=dldf,
                 how="difference",
                 keep_geom_type=True,
                 make_valid=True,
@@ -130,3 +118,10 @@ class GeopullNormalizer(Normalizer):
             make_valid=True,
         )
         admin.gdf = gdf
+
+    def _get_coastlines(self, admin: GeoJSONFeatureFile) -> GeoDataFrame:
+        dl = DaylightFile(datadir=self.datadir)
+        dldf = dl.get_water_polygons(
+            bbox=tuple(*admin.gdf.dissolve().bounds.values)
+        )
+        return dldf

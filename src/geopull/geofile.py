@@ -508,8 +508,21 @@ class DaylightFile(DownloadableGeoFile):
         return "coastlines-latest"
 
     def download(self, overwrite: bool = False) -> Path:
-        path = self._download_file_url(overwrite=overwrite)
+        return self._download_file_url(overwrite=overwrite)
 
-    def get_water_polygons(self) -> GeoDataFrame:
-        """Loads the water polygons from the tar file."""
-        return gpd.read_file(f"tar://{self.local_path}!water_polygons.shp")
+    def get_water_polygons(
+        self, bbox: tuple | None = None
+    ) -> GeoDataFrame:
+        """Loads the water polygons from the tar file.
+
+        Args:
+            bbox (tuple[float] | None, optional): the bounding box to load.
+                Defaults to None, in which case the whole file is loaded.
+        """
+        if bbox is None:
+            return gpd.read_file(f"tar://{self.local_path}!water_polygons.shp")
+        else:
+            return gpd.read_file(
+                f"tar://{self.local_path}!water_polygons.shp",
+                bbox=bbox,
+            )
