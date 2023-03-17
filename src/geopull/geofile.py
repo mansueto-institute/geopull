@@ -529,8 +529,7 @@ class DaylightFile(DownloadableGeoFile):
         """
         if bbox is None:
             return gpd.read_file(f"tar://{self.local_path}!water_polygons.shp")
-        else:
-            return gpd.read_file(
-                f"tar://{self.local_path}!water_polygons.shp",
-                bbox=bbox,
-            )
+        return gpd.read_file(
+            f"tar://{self.local_path}!water_polygons.shp",
+            bbox=bbox,
+        )
