@@ -63,23 +63,28 @@ class GeopullNormalizer(Normalizer):
         adminp = ParquetFeatureFile(admin.country_code, "admin")
         adminp.write_file(admin.gdf)
 
-        adminpd = ParquetFeatureFile(admin.country_code, "admin-dissolved")
-        adminpd.write_file(admin.gdf.dissolve())
-
         linesp = ParquetFeatureFile(linestring.country_code, "linestring")
         linesp.write_file(linestring.gdf)
 
     def _normalize_admin(self, admin: GeoJSONFeatureFile):
-        gdf = admin.gdf
+        gdf: GeoDataFrame = admin.gdf
         gdf["iso3"] = admin.country_code
         gdf = gdf[gdf["admin_level"].str.isnumeric()]
         gdf["admin_level"] = gdf["admin_level"].astype(int)
 
         admin_lvls = gdf["admin_level"].unique()
         if 4 in admin_lvls:
-            gdf = gdf[gdf["admin_level"] == 4]
+            gdf.to_crs(epsg=3395, inplace=True)
+            gdf['area'] = gdf.area
+            admin_areas = gdf.groupby("admin_level")["area"].sum()
+            if admin_areas.loc[4] >= admin_areas.loc[2]:
+                gdf = gdf[gdf["admin_level"] == 4]
+            else:
+                gdf = gdf[gdf["admin_level"] == 2]
         else:
             gdf = gdf[gdf["admin_level"] == 2]
+        gdf.to_crs(epsg=4326, inplace=True)
+        gdf = gdf.dissolve()
         admin.gdf = gdf
 
     def _normalize_coastline(self, admin: GeoJSONFeatureFile) -> None:

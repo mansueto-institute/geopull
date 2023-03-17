@@ -247,11 +247,11 @@ class ParquetFeatureFile(FeatureFile):
 
     def read_file(self) -> GeoDataFrame:
         logger.info("Reading parquet features: %s", self.local_path)
-        return gpd.read_parquet(self.local_path)
+        gdf = gpd.read_parquet(self.local_path)
+        return gdf
 
     def write_file(self, gdf: GeoDataFrame) -> None:
         logger.info("Writing parquet features: %s", self.local_path)
-        gdf = gdf.to_crs(4326)
         gdf.to_parquet(self.local_path)
 
 
@@ -270,7 +270,8 @@ class GeoJSONFeatureFile(FeatureFile):
 
     def read_file(self) -> GeoDataFrame:
         logger.info("Reading GeoJSON features: %s", self.local_path)
-        return gpd.read_file(self.local_path)
+        gdf = gpd.read_file(self.local_path)
+        return gdf
 
     def write_file(self, gdf: GeoDataFrame) -> None:
         logger.info("Writing GeoJSON features: %s", self.local_path)
