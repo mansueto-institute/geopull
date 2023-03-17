@@ -75,7 +75,7 @@ class GeopullNormalizer(Normalizer):
         admin_lvls = gdf["admin_level"].unique()
         if 4 in admin_lvls:
             gdf.to_crs(epsg=3395, inplace=True)
-            gdf['area'] = gdf.area
+            gdf["area"] = gdf.area
             admin_areas = gdf.groupby("admin_level")["area"].sum()
             if admin_areas.loc[4] >= admin_areas.loc[2]:
                 gdf = gdf[gdf["admin_level"] == 4]
