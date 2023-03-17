@@ -40,6 +40,10 @@ class GeopullNormalizer(Normalizer):
 
     datadir: DataDir = field(default=DataDir("."), repr=False)
     _dldf: GeoDataFrame = field(init=False, repr=False)
+    dl: DaylightFile = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.dl = DaylightFile(datadir=self.datadir)
 
     def normalize(self, **kwargs) -> None:
         admin: GeoJSONFeatureFile = kwargs["admin"]
@@ -80,7 +84,7 @@ class GeopullNormalizer(Normalizer):
 
     def _normalize_coastline(self, admin: GeoJSONFeatureFile) -> None:
         gdf = admin.gdf
-        dldf = self._get_coastlines(admin)
+        dldf = self._get_coastlines(admin, self.dl)
         intersected = gpd.sjoin(
             left_df=gdf,
             right_df=dldf,
@@ -119,9 +123,11 @@ class GeopullNormalizer(Normalizer):
         )
         admin.gdf = gdf
 
-    def _get_coastlines(self, admin: GeoJSONFeatureFile) -> GeoDataFrame:
-        dl = DaylightFile(datadir=self.datadir)
-        dldf = dl.get_water_polygons(
+    def _get_coastlines(
+        self, admin: GeoJSONFeatureFile, dl: DaylightFile
+    ) -> GeoDataFrame:
+        logger.info("Getting coastline for %s", admin.country_code)
+        dldf = dl.get_coastline(
             bbox=tuple(*admin.gdf.dissolve().bounds.values)
         )
         return dldf

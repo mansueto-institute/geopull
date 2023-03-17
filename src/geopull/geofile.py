@@ -510,10 +510,10 @@ class DaylightFile(DownloadableGeoFile):
     def download(self, overwrite: bool = False) -> Path:
         return self._download_file_url(overwrite=overwrite)
 
-    def get_water_polygons(
+    def get_coastline(
         self, bbox: tuple | None = None
     ) -> GeoDataFrame:
-        """Loads the water polygons from the tar file.
+        """Loads the coastline from the daylight tar file.
 
         Args:
             bbox (tuple[float] | None, optional): the bounding box to load.
