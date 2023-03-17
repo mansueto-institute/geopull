@@ -71,7 +71,6 @@ class GeopullExtractor(Extractor):
         )
         return GeoJSONFeatureFile.from_path(output)
 
-
     def _extract_linestring(self, pbf: PBFFile) -> GeoJSONFeatureFile:
         """Extracts line string features from a PBF file.
 

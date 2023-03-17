@@ -196,10 +196,13 @@ class CountryGeoFile(GeoFile, ABC):
 
 @dataclass
 class FeatureFile(CountryGeoFile, ABC):
+    """Represents a single export from a OSM PBF file."""
+
     _gdf: Optional[GeoDataFrame] = field(init=False, default=None)
 
     @property
     def gdf(self) -> GeoDataFrame:
+        """Lazy loads the GeoDataFrame."""
         if self._gdf is None:
             self._gdf = self.read_file()
         return self._gdf
@@ -210,13 +213,17 @@ class FeatureFile(CountryGeoFile, ABC):
 
     @abstractmethod
     def read_file(self) -> GeoDataFrame:
-        """
-        Reads the file.
-        """
+        """Reads the file."""
+
+    @abstractmethod
+    def write_file(self, gdf: GeoDataFrame) -> None:
+        """Writes the file."""
 
 
 @dataclass
 class ParquetFeatureFile(FeatureFile):
+    """The parquet version of a feature file."""
+
     features: str
     allowed_features: ClassVar[set[str]] = {
         "admin",
@@ -250,6 +257,8 @@ class ParquetFeatureFile(FeatureFile):
 
 @dataclass
 class GeoJSONFeatureFile(FeatureFile):
+    """The GeoJSON version of a feature file."""
+
     geometry_type: str
     suffix: str
 
@@ -510,9 +519,7 @@ class DaylightFile(DownloadableGeoFile):
     def download(self, overwrite: bool = False) -> Path:
         return self._download_file_url(overwrite=overwrite)
 
-    def get_coastline(
-        self, bbox: tuple | None = None
-    ) -> GeoDataFrame:
+    def get_coastline(self, bbox: tuple | None = None) -> GeoDataFrame:
         """Loads the coastline from the daylight tar file.
 
         Args:

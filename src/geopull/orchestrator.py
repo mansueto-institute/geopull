@@ -10,7 +10,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 
 from geopull.directories import DataDir
 from geopull.extractor import Extractor
-from geopull.geofile import GeoJSONFeatureFile, ParquetFeatureFile, PBFFile
+from geopull.geofile import GeoJSONFeatureFile, PBFFile
 from geopull.normalizer import Normalizer
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class Orchestrator:
             linestring = GeoJSONFeatureFile(
                 country_code=country,
                 geometry_type="linestring",
-                suffix="linestring"
+                suffix="linestring",
             )
             normalizer.normalize(
                 admin=admin, water=water, linestring=linestring
