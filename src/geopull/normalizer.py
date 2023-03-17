@@ -66,7 +66,18 @@ class GeopullNormalizer(Normalizer):
         linesp = ParquetFeatureFile(linestring.country_code, "linestring")
         linesp.write_file(linestring.gdf)
 
-    def _normalize_admin(self, admin: GeoJSONFeatureFile):
+    def _normalize_admin(self, admin: GeoJSONFeatureFile) -> None:
+        """Edits the admin features from OSM data
+
+        We try to keep the admin_level=4 features if they are larger than
+        the admin_level=2 features. Otherwise we keep the admin_level=2. The
+        issue with kepeing the admin_level=2 features is that they include the
+        maritime boundary and the exclusive economic zone. These are
+        removed in the _normalize_coastline method.
+
+        Args:
+            admin (GeoJSONFeatureFile): The admin features from OSM data.
+        """
         gdf: GeoDataFrame = admin.gdf
         gdf["iso3"] = admin.country_code
         gdf = gdf[gdf["admin_level"].str.isnumeric()]
@@ -88,6 +99,14 @@ class GeopullNormalizer(Normalizer):
         admin.gdf = gdf
 
     def _normalize_coastline(self, admin: GeoJSONFeatureFile) -> None:
+        """Removes maritime boundary and EEZ from admin features
+
+        The maritime boundary and the exclusive economic zone are removed
+        using the coastline shapefiles from the daylightmap project.
+
+        Args:
+            admin (GeoJSONFeatureFile): The admin features from OSM data.
+        """
         gdf = admin.gdf
         dldf = self._get_coastlines(admin, self.dl)
         intersected = gpd.sjoin(
@@ -112,7 +131,17 @@ class GeopullNormalizer(Normalizer):
 
     def _normalize_water(
         self, admin: GeoJSONFeatureFile, water: GeoJSONFeatureFile
-    ):
+    ) -> None:
+        """Removes water features polygons from admin polygons.
+
+        This is the last step in the normalization process. The idea is
+        to keep only the landmasses and remove the water features for each
+        country.
+
+        Args:
+            admin (GeoJSONFeatureFile): The admin features from OSM data.
+            water (GeoJSONFeatureFile): The water features from OSM data.
+        """
         logger.info("Removing water features from %s", admin.country_code)
         admin_gdf = admin.gdf
         water_gdf = water.gdf
@@ -131,6 +160,12 @@ class GeopullNormalizer(Normalizer):
     def _get_coastlines(
         self, admin: GeoJSONFeatureFile, dl: DaylightFile
     ) -> GeoDataFrame:
+        """Get the coastline for the given country.
+
+        The coastline file is very large so we only load the part of the file
+        that corresponds to the bounding box of the country using the
+        .bounds() GeoDataFrame method.
+        """
         logger.info("Getting coastline for %s", admin.country_code)
         dldf = dl.get_coastline(
             bbox=tuple(*admin.gdf.dissolve().bounds.values)
