@@ -104,7 +104,7 @@ class GeoPullCLI:
             extractor = GeopullExtractor(
                 datadir=DataDir(self.args.output_dir),
                 overwrite=self.args.overwrite,
-                progress=True
+                progress=True,
             )
             orch = Orchestrator(self.args.country_list)
             try:
