@@ -102,7 +102,9 @@ class GeoPullCLI:
                     self.parser.error(str(e))
         elif self.args.subcommand == "extract":
             extractor = GeopullExtractor(
-                datadir=DataDir(self.args.output_dir), progress=True
+                datadir=DataDir(self.args.output_dir),
+                overwrite=self.args.overwrite,
+                progress=True
             )
             orch = Orchestrator(self.args.country_list)
             try:
