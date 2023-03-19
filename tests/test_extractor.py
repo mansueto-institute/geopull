@@ -59,7 +59,7 @@ class TestGeopullExtractor:
                 "barrier",
                 "route",
                 "railway",
-                "highway",
+                "highway!=footway,bridleway,steps,cordidor,path,cycleway",
                 "waterway",
                 "boundary",
             ],
