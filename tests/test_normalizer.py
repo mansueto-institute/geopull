@@ -9,12 +9,11 @@ import geopandas as gpd
 import pytest
 from shapely.geometry import Polygon
 
-from geopull.geofile import DaylightFile
-from geopull.normalizer import (
+from geopull.geofile import (
+    DaylightFile,
     GeoJSONFeatureFile,
-    GeopullNormalizer,
-    Normalizer,
 )
+from geopull.normalizer import GeopullNormalizer, Normalizer
 
 
 @pytest.fixture
@@ -52,6 +51,7 @@ class TestGeopullNormalizer:
     def test_dl(self, normalizer):
         assert isinstance(normalizer.dl, DaylightFile)
 
+    @patch("geopull.normalizer.ParquetFeatureFile", MagicMock())
     @patch.object(GeopullNormalizer, "_normalize_admin", MagicMock())
     @patch.object(GeopullNormalizer, "_normalize_coastline", MagicMock())
     @patch.object(GeopullNormalizer, "_normalize_water", MagicMock())
@@ -60,6 +60,7 @@ class TestGeopullNormalizer:
         normalizer._normalize_admin.assert_called_once_with(geojson)
         normalizer._normalize_water.assert_called_once()
 
+    @patch("geopull.normalizer.ParquetFeatureFile", MagicMock())
     @patch.object(GeopullNormalizer, "_normalize_coastline", MagicMock())
     @patch.object(GeopullNormalizer, "_normalize_water", MagicMock())
     @patch.object(GeopullNormalizer, "_normalize_admin", MagicMock())
