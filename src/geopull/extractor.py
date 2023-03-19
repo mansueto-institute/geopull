@@ -82,7 +82,7 @@ class GeopullExtractor(Extractor):
         output = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
-                "natural",
+                "natural!=coastline",
                 "barrier",
                 "route",
                 "railway",

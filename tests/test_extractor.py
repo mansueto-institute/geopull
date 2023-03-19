@@ -55,7 +55,7 @@ class TestGeopullExtractor:
         pbf.export.assert_called_once_with(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
-                "natural",
+                "natural!=coastline",
                 "barrier",
                 "route",
                 "railway",
