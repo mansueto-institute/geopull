@@ -91,7 +91,7 @@ class GeopullExtractor(Extractor):
                 (
                     "boundary!=administrative,place,political,postal_code,"
                     "special_economic_zone,user_defined,maritime"
-                )
+                ),
             ],
             geometry_type="linestring",
             overwrite=self.overwrite,
