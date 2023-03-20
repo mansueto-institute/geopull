@@ -82,13 +82,16 @@ class GeopullExtractor(Extractor):
         output = pbf.export(
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
-                "natural!=coastline",
+                "natural!=coastline,reef",
                 "barrier",
                 "route",
                 "railway",
-                "highway!=footway,bridleway,steps,cordidor,path,cycleway",
+                "highway!=footway,bridleway,steps,corridor,path,cycleway",
                 "waterway",
-                "boundary",
+                (
+                    "boundary!=administrative,place,political,postal_code,"
+                    "special_economic_zone,user_defined,maritime"
+                )
             ],
             geometry_type="linestring",
             overwrite=self.overwrite,
