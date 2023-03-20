@@ -125,6 +125,7 @@ class GeopullNormalizer(Normalizer):
                 keep_geom_type=True,
                 make_valid=True,
             )
+            gdf = gdf.make_valid()
         admin.gdf = gdf
 
     def _normalize_water(
@@ -153,6 +154,7 @@ class GeopullNormalizer(Normalizer):
             keep_geom_type=True,
             make_valid=True,
         )
+        gdf = gdf.make_valid()
         admin.gdf = gdf
 
     def _get_coastlines(

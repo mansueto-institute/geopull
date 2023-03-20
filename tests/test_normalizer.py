@@ -106,18 +106,18 @@ class TestGeopullNormalizer:
     @patch("geopandas.sjoin")
     @patch("geopandas.overlay")
     def test_normalize_coastline(
-        self, mock_overlay, mock_sjoin, intersect, normalizer, geojson
+        self, mock_overlay, mock_sjoin, intersect, normalizer, geojson, geodata
     ):
         gdf = gpd.GeoDataFrame({"admin_level": [2, 2, 2]})
         geojson.gdf = gdf
         mock_sjoin.return_value = ["record"] * intersect
-        mock_overlay.return_value = "overlay"
+        mock_overlay.return_value = geodata
         normalizer._normalize_coastline(geojson)
 
         if intersect == 0:
             assert geojson.gdf.equals(gdf)
         else:
-            assert geojson.gdf == "overlay"
+            assert geojson.gdf.equals(geodata.make_valid())
 
     @patch("geopandas.overlay")
     def test_normalize_water(
