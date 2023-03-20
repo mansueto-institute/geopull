@@ -29,12 +29,10 @@ class TestDataDir:
     @staticmethod
     def test_init(tmp_path):
         data_dir = DataDir(tmp_path)
-        assert data_dir.data.exists()
-        assert data_dir.data.is_dir()
-        assert data_dir.osm_pbf_dir.exists()
-        assert data_dir.osm_pbf_dir.is_dir()
-        assert data_dir.osm_geojson_dir.exists()
-        assert data_dir.osm_geojson_dir.is_dir()
+        attrs = (attr for attr in dir(data_dir) if attr.endswith("dir"))
+        for attr in attrs:
+            assert getattr(data_dir, attr).exists()
+            assert getattr(data_dir, attr).is_dir()
 
     @staticmethod
     def test_init_not_exists(tmp_path):

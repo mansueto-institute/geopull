@@ -63,3 +63,27 @@ class DataDir:
         geojson_dir = self.data.joinpath("osm", "geojson")
         geojson_dir.mkdir(exist_ok=True)
         return geojson_dir
+
+    @property
+    def osm_parquet_dir(self) -> Path:
+        """
+        Returns the path to the Parquet files directory.
+
+        Returns:
+            Path: path to the Parquet files directory.
+        """
+        parquet_dir = self.data.joinpath("osm", "parquet")
+        parquet_dir.mkdir(exist_ok=True)
+        return parquet_dir
+
+    @property
+    def daylight_dir(self) -> Path:
+        """
+        Returns the path to the daylight files directory.
+
+        Returns:
+            Path: path to the daylight files directory.
+        """
+        daylight_dir = self.data.joinpath("daylight")
+        daylight_dir.mkdir(exist_ok=True)
+        return daylight_dir

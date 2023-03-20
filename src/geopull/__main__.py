@@ -11,8 +11,11 @@ Created on 2022-12-29 08:48:17-05:00
 import logging
 from argparse import ArgumentParser
 
-from geopull.geofile import PBFFile
 from geopull.directories import DataDir
+from geopull.extractor import GeopullExtractor
+from geopull.geofile import DaylightFile, PBFFile
+from geopull.normalizer import GeopullNormalizer
+from geopull.orchestrator import Orchestrator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,32 +49,43 @@ class GeoPullCLI:
         )
         self._build_export_parser()
 
+        self.extract_parser = subparsers.add_parser(
+            name="extract",
+            help="Extract necessary data from OSM data for blocking.",
+        )
+        self._build_extract_parser()
+
+        self.normalize_parser = subparsers.add_parser(
+            name="normalize",
+            help="Normalize extracted data for blocking.",
+        )
+        self._build_normalize_parser()
+
         self.args = self.parser.parse_args()
 
     def main(self) -> None:
         """
         Main method for the geopull package CLI.
         """
-
         if self.args.subcommand == "download":
-            for country in self.args.country_list:
+            if self.args.filetype == "countries":
+                orch = Orchestrator(self.args.country_list)
                 try:
-                    pbf_file = PBFFile(
-                        country.upper(),
-                        datadir=DataDir(self.args.output_dir),
-                    )
-                    pbf_file.download(self.args.overwrite)
+                    orch.download()
                 except KeyError as e:
                     self.parser.error(str(e))
                 except FileNotFoundError as e:
                     self.parser.error(str(e))
                 except NotADirectoryError as e:
                     self.parser.error(str(e))
+            elif self.args.filetype == "daylight":
+                dl = DaylightFile(datadir=DataDir(self.args.output_dir))
+                dl.download(self.args.overwrite)
         elif self.args.subcommand == "export":
             for country in self.args.country_list:
                 try:
                     pbf_file = PBFFile(
-                        country.upper(),
+                        country_code=country.upper(),
                         datadir=DataDir(self.args.output_dir),
                     )
                     pbf_file.export(
@@ -86,11 +100,58 @@ class GeoPullCLI:
                     self.parser.error(str(e))
                 except NotADirectoryError as e:
                     self.parser.error(str(e))
+        elif self.args.subcommand == "extract":
+            extractor = GeopullExtractor(
+                datadir=DataDir(self.args.output_dir),
+                overwrite=self.args.overwrite,
+                progress=True,
+            )
+            orch = Orchestrator(self.args.country_list)
+            try:
+                orch.extract(extractor=extractor)
+            except KeyError as e:
+                self.parser.error(str(e))
+            except FileNotFoundError as e:
+                self.parser.error(str(e))
+            except NotADirectoryError as e:
+                self.parser.error(str(e))
+
+        elif self.args.subcommand == "normalize":
+            normalizer = GeopullNormalizer(
+                datadir=DataDir(self.args.output_dir)
+            )
+            orch = Orchestrator(self.args.country_list)
+            orch.normalize(normalizer=normalizer)
+
         else:
             self.parser.print_usage()
 
     def _build_download_parser(self) -> None:
-        self._add_io_args(self.download_parser)
+        subparsers = self.download_parser.add_subparsers(
+            dest="filetype",
+            help="Available files types to download",
+            metavar="filetype",
+        )
+
+        dlparser = subparsers.add_parser(
+            "daylight", help="Download daylight data"
+        )
+
+        country_parser = subparsers.add_parser(
+            "countries", help="Download country data"
+        )
+
+        self._add_country_args(country_parser)
+        self._add_io_args(dlparser)
+        self._add_io_args(country_parser)
+
+    def _build_extract_parser(self) -> None:
+        self._add_country_args(self.extract_parser)
+        self._add_io_args(self.extract_parser)
+
+    def _build_normalize_parser(self) -> None:
+        self._add_country_args(self.normalize_parser)
+        self._add_io_args(self.normalize_parser)
 
     def _build_export_parser(self) -> None:
         self.export_parser.add_argument(
@@ -114,20 +175,10 @@ class GeoPullCLI:
             default=None,
             help="Geometry type to export",
         )
-
+        self._add_country_args(self.export_parser)
         self._add_io_args(self.export_parser)
 
     def _add_io_args(self, parser: ArgumentParser) -> None:
-        parser.add_argument(
-            "country_list",
-            metavar="country-list",
-            nargs="+",
-            help=(
-                "Space-delimited list of country codes following ISO 3166-1 "
-                "alpha-3 format"
-            ),
-            type=str,
-        )
         parser.add_argument(
             "--output-dir",
             "-o",
@@ -145,6 +196,18 @@ class GeoPullCLI:
             action="store_true",
             help="Overwrite existing files",
             default=False,
+        )
+
+    def _add_country_args(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
+            "country_list",
+            metavar="country-list",
+            nargs="+",
+            help=(
+                "Space-delimited list of country codes following ISO 3166-1 "
+                "alpha-3 format"
+            ),
+            type=str,
         )
 
 
