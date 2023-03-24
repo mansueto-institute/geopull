@@ -117,7 +117,8 @@ class TestGeopullNormalizer:
         if intersect == 0:
             assert geojson.gdf.equals(gdf)
         else:
-            assert geojson.gdf.equals(geodata.make_valid())
+            geojson.gdf['geometry'] = geojson.gdf.make_valid()
+            assert geojson.gdf.equals(geodata)
 
     @patch("geopandas.overlay")
     def test_normalize_water(
