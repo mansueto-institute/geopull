@@ -9,10 +9,7 @@ import geopandas as gpd
 import pytest
 from shapely.geometry import Polygon
 
-from geopull.geofile import (
-    DaylightFile,
-    GeoJSONFeatureFile,
-)
+from geopull.geofile import DaylightFile, GeoJSONFeatureFile
 from geopull.normalizer import GeopullNormalizer, Normalizer
 
 
@@ -117,7 +114,7 @@ class TestGeopullNormalizer:
         if intersect == 0:
             assert geojson.gdf.equals(gdf)
         else:
-            geojson.gdf['geometry'] = geojson.gdf.make_valid()
+            geojson.gdf["geometry"] = geojson.gdf.make_valid()
             assert geojson.gdf.equals(geodata)
 
     @patch("geopandas.overlay")
