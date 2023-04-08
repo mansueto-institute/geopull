@@ -5,7 +5,7 @@ description = """
     a minimal amount of preprocessing.
     """
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 version = "0.5.0"
 authors = [
     {name = "Manuel Martinez", email = "manmart@uchicago.edu"}
