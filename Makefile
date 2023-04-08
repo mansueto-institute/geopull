@@ -19,7 +19,7 @@ clean-test:
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint: lint/flake8 lint/isort lint/black
+lint: lint/isort lint/black lint/flake8
 
 lint/flake8:
 	flake8 src tests
