@@ -1,4 +1,5 @@
-tqdm
 geopandas
 pyarrow
 pyogrio
+shapely
+tqdm
