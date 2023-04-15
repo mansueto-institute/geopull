@@ -83,8 +83,8 @@ class GeopullExtractor(Extractor):
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural!=coastline,reef",
-                "barrier",
-                "route",
+                "barrier=cityt_wall,ditch",
+                "route!=ferry",
                 "railway",
                 "highway!=footway,bridleway,steps,corridor,path,cycleway",
                 "waterway",
