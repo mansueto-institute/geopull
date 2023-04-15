@@ -247,7 +247,7 @@ class ParquetFeatureFile(FeatureFile):
 
     def read_file(self) -> GeoDataFrame:
         logger.info("Reading parquet features: %s", self.local_path)
-        gdf = gpd.read_parquet(self.local_path)
+        gdf = gpd.read_parquet(self.local_path).to_crs(4326)
         return gdf
 
     def write_file(self, gdf: GeoDataFrame) -> None:
