@@ -84,7 +84,7 @@ class GeopullExtractor(Extractor):
             include_tags=[
                 "natural!=coastline,reef",
                 "barrier=cityt_wall,ditch",
-                "route!=ferry",
+                "route",
                 "railway",
                 "highway!=footway,bridleway,steps,corridor,path,cycleway",
                 "waterway",
