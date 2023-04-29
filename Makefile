@@ -19,16 +19,13 @@ clean-test:
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint: lint/isort lint/black lint/flake8
-
-lint/flake8:
-	flake8 src tests
+lint: lint/ruff lint/black
 
 lint/black:
 	black src tests
 
-lint/isort:
-	isort src tests
+lint/ruff:
+	ruff src tests --fix
 
 test: test/mypy test/pytest
 
