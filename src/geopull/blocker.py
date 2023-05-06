@@ -12,7 +12,7 @@ from shapely import MultiLineString, MultiPolygon
 
 from geopull.geofile import ParquetFeatureFile
 
-logger = logging.getlogging(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass

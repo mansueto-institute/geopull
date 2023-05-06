@@ -43,5 +43,6 @@ def test_import_extractor():
 def test_import_normalizer():
     import geopull.normalizer  # noqa: F401
 
+
 def test_import_blocker():
     import geopull.blocker  # noqa: F401
