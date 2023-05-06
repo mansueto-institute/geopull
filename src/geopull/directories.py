@@ -87,3 +87,14 @@ class DataDir:
         daylight_dir = self.data.joinpath("daylight")
         daylight_dir.mkdir(exist_ok=True)
         return daylight_dir
+
+    @property
+    def blocks_dir(self) -> Path:
+        """Returns the path to the blocks files directory.
+
+        Returns:
+            Path: path to the blocks files directory.
+        """
+        blocks_dir = self.data.joinpath("blocks")
+        blocks_dir.mkdir(exist_ok=True)
+        return blocks_dir

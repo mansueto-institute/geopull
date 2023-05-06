@@ -11,6 +11,7 @@ Created on 2022-12-29 08:48:17-05:00
 import logging
 from argparse import ArgumentParser
 
+from geopull.blocker import Blocker
 from geopull.directories import DataDir
 from geopull.extractor import GeopullExtractor
 from geopull.geofile import DaylightFile, PBFFile
@@ -60,6 +61,12 @@ class GeoPullCLI:
             help="Normalize extracted data for blocking.",
         )
         self._build_normalize_parser()
+
+        self.block_parser = subparsers.add_parser(
+            name="block",
+            help="Block normalized data.",
+        )
+        self._build_block_parser()
 
         self.args = self.parser.parse_args()
 
@@ -123,6 +130,10 @@ class GeoPullCLI:
             orch = Orchestrator(self.args.country_list)
             orch.normalize(normalizer=normalizer)
 
+        elif self.args.subcommand == "block":
+            orch = Orchestrator(self.args.country_list)
+            orch.block(Blocker)
+
         else:
             self.parser.print_usage()
 
@@ -152,6 +163,10 @@ class GeoPullCLI:
     def _build_normalize_parser(self) -> None:
         self._add_country_args(self.normalize_parser)
         self._add_io_args(self.normalize_parser)
+
+    def _build_block_parser(self) -> None:
+        self._add_country_args(self.block_parser)
+        self._add_io_args(self.block_parser)
 
     def _build_export_parser(self) -> None:
         self.export_parser.add_argument(

@@ -12,6 +12,7 @@ from geopull.directories import DataDir
 from geopull.extractor import Extractor
 from geopull.geofile import GeoJSONFeatureFile, PBFFile
 from geopull.normalizer import Normalizer
+from geopull.blocker import Blocker
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,12 @@ class Orchestrator:
             normalizer.normalize(
                 admin=admin, water=water, linestring=linestring
             )
+
+    def block(self, blocker: Blocker) -> None:
+        for country in self.countries:
+            blocker = Blocker(country_code=country)
+            blocks = blocker.build_blocks()
+            blocks.to_parquet(self.datadir.blocks_dir / f"{country}.parquet")
 
     def _pool_mapper(self, func: Callable, iterable: Iterable) -> None:
         ncpu = os.cpu_count()

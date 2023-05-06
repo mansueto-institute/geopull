@@ -12,8 +12,7 @@ from shapely import MultiLineString, MultiPolygon
 
 from geopull.geofile import ParquetFeatureFile
 
-# logging = logging.getlogging(__name__)
-logging.basicConfig(level=logging.INFO)
+logger = logging.getlogging(__name__)
 
 
 @dataclass
@@ -104,7 +103,7 @@ class Blocker:
         # remove duplicate pairs
         unique_overlap_ids = overlap.index.unique()
         overlap = overlap[overlap.index > overlap["index_right"]]
-        logging.info("Removing %s overlapping blocks", len(overlap))
+        logger.info("Removing %s overlapping blocks", len(overlap))
         overlap_geom = shapely.boundary(overlap.geometry)
         overlap_geom = shapely.line_merge(overlap_geom)
         overlap_geom = shapely.union_all((overlap_geom,))
@@ -141,8 +140,8 @@ class Blocker:
         overlap = gpd.sjoin(geoms, geoms, how="inner", predicate="overlaps")
 
         if len(overlap) > 0:
-            logging.warning("Unable to remove all overlapping blocks.")
-            logging.warning("%s blocks remain overlapping.", len(overlap))
+            logger.warning("Unable to remove all overlapping blocks.")
+            logger.warning("%s blocks remain overlapping.", len(overlap))
             overlap_intersection = gpd.overlay(
                 df1=overlap,
                 df2=overlap,
@@ -150,11 +149,11 @@ class Blocker:
                 keep_geom_type=True,
                 make_valid=True,
             )
-            logging.warning(
+            logger.warning(
                 "Unresolved intersection area: %.4f sq. km",
                 self._m2tokm2(overlap_intersection.to_crs(3395).area.sum()),
             )
-        logging.info("All overlapping blocks removed.")
+        logger.info("All overlapping blocks removed.")
 
         return corrected_df
 
@@ -177,7 +176,7 @@ class Blocker:
         if residual_area <= 0:
             return blocks
 
-        logging.warning(
+        logger.warning(
             "Residual area: %.4f sq. km", self._m2tokm2(residual_area)
         )
         residue = self.land_df["geometry"].unary_union.difference(
@@ -185,7 +184,7 @@ class Blocker:
         )
         residue_df = GeoDataFrame(geometry=[residue]).set_crs(4326)
         residue_df = residue_df.explode(index_parts=False)
-        logging.warning(
+        logger.warning(
             "Adding %.4f sq. km of residual area to blocks",
             self._m2tokm2(residue_df.to_crs(3395).area.sum()),
         )
@@ -226,7 +225,7 @@ class Blocker:
             - self.land_df.geometry.to_crs(3395).area.sum()
         )
         if resid_area > 0:
-            logging.info(
+            logger.info(
                 f"Adding back {self._m2tokm2(resid_area):.4f} km^2 of water."
             )
             blocks = gpd.overlay(
@@ -275,7 +274,7 @@ class Blocker:
         Returns:
             MultiPolygon: the polygonized MultiPolygon.
         """
-        logging.info(
+        logger.info(
             "Polygonizing land and line geometries. for %s", self.country_code
         )
         blocks = shapely.union_all((land, line))
@@ -297,7 +296,7 @@ class Blocker:
         Returns:
             GeoDataFrame: the blocks with a geohash.
         """
-        logging.info("Geohashing blocks.")
+        logger.info("Geohashing blocks.")
         blocks["geohash"] = blocks.geometry.representative_point().apply(
             lambda x: pgh.encode(x.y, x.x, precision=precision)
         )
