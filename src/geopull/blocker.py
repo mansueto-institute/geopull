@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 import geopandas as gpd
 import pandas as pd
+import pygeohash as pgh
 import shapely
 from geopandas import GeoDataFrame
 from shapely import MultiLineString, MultiPolygon
@@ -40,13 +41,14 @@ class Blocker:
         self.land_df = land_df
         self.line_df = line_df
 
-    def build_blocks(self) -> GeoDataFrame:
+    def build_blocks(self, precision: int = 12) -> GeoDataFrame:
         blocks = self._make_blocks()
         blocks = self._validate(blocks)
         blocks = self._add_back_water_features(blocks)
         blocks = self._validate(blocks)
         blocks = self._remove_overlaps(blocks)
         blocks = self._residual_area_check(blocks)
+        blocks = self._geohash_blocks(blocks, precision)
         return blocks
 
     def _remove_overlaps(self, blocks: GeoDataFrame) -> GeoDataFrame:
@@ -251,6 +253,25 @@ class Blocker:
             shapely.normalize(shapely.get_parts(blocks))
         )
         blocks = shapely.make_valid(blocks)
+        return blocks
+
+    @staticmethod
+    def _geohash_blocks(blocks: GeoDataFrame, precision: int) -> GeoDataFrame:
+        logging.info("Geohashing blocks.")
+        blocks["geohash"] = blocks.geometry.representative_point().apply(
+            lambda x: pgh.encode(x.y, x.x, precision=precision)
+        )
+        blocks = blocks.sort_values(by="geohash", ascending=False)
+        blocks = blocks.reset_index(drop=True)
+        blocks["georank"] = blocks.groupby("geohash").cumcount()
+        blocks["block_id"] = (
+            blocks["iso3"]
+            + "_"
+            + blocks["geohash"]
+            + "_"
+            + blocks["georank"].astype(str)
+        )
+        blocks = blocks.drop(columns=["iso3", "geohash", "georank"])
         return blocks
 
     @staticmethod
