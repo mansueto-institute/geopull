@@ -31,19 +31,22 @@ class Blocker:
             country_code=self.country_code, features="linestring"
         )
         land_df = land_parq.gdf
+        line_df = line_parq.gdf
         land_df = land_df.explode(index_parts=False)
         land_df = land_df[land_df["geometry"].geom_type == "Polygon"]
-        self.land_df = land_df
+        land_df = land_df[["iso3", "geometry"]]
+        line_df = line_df[["geometry", "highway"]]
 
-        self.line_df = line_parq.gdf
+        self.land_df = land_df
+        self.line_df = line_df
 
     def build_blocks(self) -> GeoDataFrame:
         blocks = self._make_blocks()
         blocks = self._validate(blocks)
         blocks = self._add_back_water_features(blocks)
         blocks = self._validate(blocks)
-        blocks = blocks.drop(columns="area")
         blocks = self._remove_overlaps(blocks)
+        blocks = self._residual_area_check(blocks)
         return blocks
 
     def _remove_overlaps(self, blocks: GeoDataFrame) -> GeoDataFrame:
@@ -133,6 +136,30 @@ class Blocker:
 
         return corrected_df
 
+    def _residual_area_check(self, blocks: GeoDataFrame) -> GeoDataFrame:
+        residual_area = (
+            self.land_df.to_crs(3395).area.sum()
+            - blocks.to_crs(3395).area.sum()
+        )
+        if residual_area <= 0:
+            return blocks
+
+        logging.warning(
+            "Residual area: %.4f sq. km", self._m2tokm2(residual_area)
+        )
+        residue = self.land_df["geometry"].unary_union.difference(
+            blocks["geometry"].unary_union
+        )
+        residue_df = GeoDataFrame(geometry=[residue]).set_crs(4326)
+        residue_df = residue_df.explode(index_parts=False)
+        logging.warning(
+            "Adding %.4f sq. km of residual area to blocks",
+            self._m2tokm2(residue_df.to_crs(3395).area.sum()),
+        )
+        blocks = pd.concat([blocks, residue_df], ignore_index=True)
+        blocks["iso3"] = blocks["iso3"].fillna(method="ffill")
+        return blocks
+
     def _validate(self, gdf: GeoDataFrame) -> GeoDataFrame:
         """Validates the geometry of a GeoDataFrame.
 
@@ -199,12 +226,7 @@ class Blocker:
         land_enclosure = self._get_land_enclosure(landgeo)
         blocks = self._polygonize(land_enclosure, all_lines)
 
-        gdf = GeoDataFrame(
-            data={
-                "region_code": self.land_df["iso3"].iloc[0],
-                "geometry": blocks,
-            },
-        ).set_crs(4326)
+        gdf = GeoDataFrame(data={"geometry": blocks}).set_crs(4326)
 
         return gdf
 
