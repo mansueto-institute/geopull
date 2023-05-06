@@ -4,13 +4,15 @@ import logging
 from dataclasses import dataclass, field
 
 import geopandas as gpd
+import pandas as pd
 import shapely
 from geopandas import GeoDataFrame
 from shapely import MultiLineString, MultiPolygon
 
 from geopull.geofile import ParquetFeatureFile
 
-logger = logging.getLogger(__name__)
+# logging = logging.getlogging(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass
@@ -40,7 +42,96 @@ class Blocker:
         blocks = self._validate(blocks)
         blocks = self._add_back_water_features(blocks)
         blocks = self._validate(blocks)
+        blocks = blocks.drop(columns="area")
+        blocks = self._remove_overlaps(blocks)
         return blocks
+
+    def _remove_overlaps(self, blocks: GeoDataFrame) -> GeoDataFrame:
+        """Removes overlapping blocks.
+
+        This function removes overlapping blocks by overlaying the blocks with
+        themselves, and removing the overlapping areas. If there are still
+        overlapping blocks, the function returns the blocks WITH the
+        overlapping areas.
+
+        Args:
+            blocks (GeoDataFrame): The blocks to remove overlaps from.
+
+        Raises:
+            ValueError: If the blocks are not in WGS84.
+
+        Returns:
+            GeoDataFrame: The blocks with overlaps removed. there could still
+                be overlapping blocks.
+        """
+        if blocks.crs != 4326:
+            raise ValueError("Blocks must be in WGS84")
+
+        blocks = blocks[blocks.to_crs(3395).area > 1]
+        blocks = blocks.reset_index(drop=True)
+
+        geoms = blocks[["geometry"]]
+        overlap = gpd.sjoin(geoms, geoms, how="inner", predicate="overlaps")
+
+        if len(overlap) == 0:
+            return blocks
+
+        # remove duplicate pairs
+        unique_overlap_ids = overlap.index.unique()
+        overlap = overlap[overlap.index > overlap["index_right"]]
+        logging.info("Removing %s overlapping blocks", len(overlap))
+        overlap_geom = shapely.boundary(overlap.geometry)
+        overlap_geom = shapely.line_merge(overlap_geom)
+        overlap_geom = shapely.union_all((overlap_geom,))
+        overlap_geom = shapely.polygonize((overlap_geom,))
+        overlap_geom = shapely.normalize(shapely.get_parts(overlap_geom))
+        overlap_geom = shapely.get_parts(overlap_geom)
+        overlap_geom = shapely.make_valid(overlap_geom)
+        overlap_df = GeoDataFrame(geometry=overlap_geom).set_crs(4326)
+        overlap_df = gpd.overlay(
+            df1=overlap_df,
+            df2=blocks[~blocks.index.isin(unique_overlap_ids)],
+            how="difference",
+            keep_geom_type=True,
+            make_valid=True,
+        )
+        overlap_df.index = overlap.index
+        corrected_df = pd.concat(
+            [
+                blocks[~blocks.index.isin(unique_overlap_ids)][["geometry"]],
+                overlap_df[["geometry"]],
+            ]
+        )
+        corrected_df = corrected_df.merge(
+            blocks.drop(columns="geometry"),
+            how="left",
+            left_index=True,
+            right_index=True,
+        )
+
+        corrected_df["geometry"] = corrected_df["geometry"].make_valid()
+        corrected_df = corrected_df.dissolve(by=corrected_df.index)
+
+        geoms = corrected_df[["geometry"]]
+        overlap = gpd.sjoin(geoms, geoms, how="inner", predicate="overlaps")
+
+        if len(overlap) > 0:
+            logging.warning("Unable to remove all overlapping blocks.")
+            logging.warning("%s blocks remain overlapping.", len(overlap))
+            overlap_intersection = gpd.overlay(
+                df1=overlap,
+                df2=overlap,
+                how="intersection",
+                keep_geom_type=True,
+                make_valid=True,
+            )
+            logging.warning(
+                "Unresolved intersection area: %.4f sq. km",
+                self._m2tokm2(overlap_intersection.to_crs(3395).area.sum()),
+            )
+        logging.info("All overlapping blocks removed.")
+
+        return corrected_df
 
     def _validate(self, gdf: GeoDataFrame) -> GeoDataFrame:
         """Validates the geometry of a GeoDataFrame.
@@ -75,8 +166,8 @@ class Blocker:
             - self.land_df.geometry.to_crs(3395).area.sum()
         )
         if resid_area > 0:
-            logger.info(
-                f"Adding back {resid_area * 0.0001} sq. km of water features."
+            logging.info(
+                f"Adding back {self._m2tokm2(resid_area):.4f} km^2 of water."
             )
             blocks = gpd.overlay(
                 df1=blocks,
@@ -129,7 +220,7 @@ class Blocker:
         Returns:
             MultiPolygon: the polygonized MultiPolygon.
         """
-        logger.info(
+        logging.info(
             "Polygonizing land and line geometries. for %s", self.country_code
         )
         blocks = shapely.union_all((land, line))
@@ -139,6 +230,18 @@ class Blocker:
         )
         blocks = shapely.make_valid(blocks)
         return blocks
+
+    @staticmethod
+    def _m2tokm2(m2: float) -> float:
+        """Converts square meters to square kilometers.
+
+        Args:
+            m2 (float): the area in square meters.
+
+        Returns:
+            float: the area in square kilometers.
+        """
+        return m2 * 1e-6
 
     @staticmethod
     def _merge_land_lines(
