@@ -56,7 +56,7 @@ class TestGeopullExtractor:
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural!=coastline,reef",
-                "barrier",
+                "barrier=city_wall,ditch",
                 "route",
                 "railway",
                 "highway!=footway,bridleway,steps,corridor,path,cycleway",

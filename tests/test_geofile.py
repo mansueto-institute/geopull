@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from geopandas import GeoDataFrame
+from shapely.geometry import Point
 
 from geopull.geofile import (
     DaylightFile,
@@ -253,8 +254,11 @@ class TestParquetFeatureFile:
     def test_read_file(
         self, mock_read: MagicMock, parquet_file: ParquetFeatureFile
     ):
-        mock_read.return_value = "gdf"
-        assert parquet_file.read_file() == "gdf"
+        gdf = GeoDataFrame(
+            geometry=[Point(0, 0), Point(1, 1)], data={"one": [1, 2]}
+        ).set_crs("EPSG:4326")
+        mock_read.return_value = gdf
+        assert parquet_file.read_file().equals(gdf)
         mock_read.assert_called_once_with(parquet_file.local_path)
 
     @patch("geopandas.GeoDataFrame")

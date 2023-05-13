@@ -15,7 +15,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from importlib.resources import open_text
+from importlib.resources import files
 from pathlib import Path
 from subprocess import run
 from tempfile import NamedTemporaryFile
@@ -38,7 +38,7 @@ def load_country_codes() -> dict[str, list[str]]:
     Returns:
         dict[str, list[str]]: dictionary of country codes
     """
-    with open_text("geopull", "iso2geofabrik.json") as f:
+    with files("geopull").joinpath("iso2geofabrik.json").open() as f:
         return json.load(f)
 
 
@@ -247,7 +247,7 @@ class ParquetFeatureFile(FeatureFile):
 
     def read_file(self) -> GeoDataFrame:
         logger.info("Reading parquet features: %s", self.local_path)
-        gdf = gpd.read_parquet(self.local_path)
+        gdf = gpd.read_parquet(self.local_path).to_crs(4326)
         return gdf
 
     def write_file(self, gdf: GeoDataFrame) -> None:

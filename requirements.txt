@@ -1,4 +1,6 @@
-tqdm
 geopandas
 pyarrow
+pygeohash
 pyogrio
+shapely
+tqdm
