@@ -39,7 +39,6 @@ line-length = 79
 ignore_missing_imports = true
 install_types = true
 non_interactive = true
-packages = ["src"]
 
 [tool.coverage.run]
 omit = ["src/geopull/tqdm_download.py"]
