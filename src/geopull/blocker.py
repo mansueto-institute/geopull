@@ -284,7 +284,7 @@ class Blocker:
             MultiPolygon: the polygonized MultiPolygon.
         """
         logger.info(
-            "Polygonizing land and line geometries. for %s", self.region_code
+            "Polygonizing land and line geometries for %s", self.region_code
         )
         blocks = shapely.union_all((land, line))
         blocks = shapely.polygonize((blocks,))
