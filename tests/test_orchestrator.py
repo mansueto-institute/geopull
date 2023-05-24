@@ -39,6 +39,11 @@ class TestOrchestrator:
         orchestrator.normalize(mock_norm)
         mock_norm.normalize.assert_called_once()
 
+    @patch("geopull.orchestrator.GeoPullBlocker")
+    def test_block(self, mock_block: MagicMock, orchestrator: Orchestrator):
+        orchestrator.block()
+        mock_block.return_value.build_blocks.assert_called_once()
+
     @pytest.mark.parametrize("ncpu", [None, 4])
     @patch("geopull.orchestrator.Pool")
     def test_pool_mapper(
