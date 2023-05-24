@@ -393,5 +393,3 @@ class GeoPullBlocker(Blocker):
         self.land_df = land_df
         self.line_df = line_df
         super().__post_init__()
-
-

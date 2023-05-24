@@ -12,7 +12,7 @@ from geopull.directories import DataDir
 from geopull.extractor import Extractor
 from geopull.geofile import GeoJSONFeatureFile, PBFFile
 from geopull.normalizer import Normalizer
-from geopull.blocker import Blocker, GeoPullBlocker
+from geopull.blocker import GeoPullBlocker
 
 logger = logging.getLogger(__name__)
 
