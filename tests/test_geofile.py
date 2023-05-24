@@ -218,7 +218,7 @@ class FeatureFileInstance(FeatureFile):
 
     @property
     def local_path(self) -> Path:
-        return super().local_path
+        return super().local_path  # type: ignore
 
 
 class TestFeatureFile:

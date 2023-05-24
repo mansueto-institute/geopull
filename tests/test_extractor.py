@@ -37,7 +37,7 @@ class TestGeopullExtractor:
     @patch("geopull.extractor.PBFFile", autospec=True)
     def test_extract_admin(self, pbf: PBFFile, extractor: GeopullExtractor):
         extractor._extract_admin(pbf)
-        pbf.export.assert_called_once_with(
+        pbf.export.assert_called_once_with(  # type: ignore
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=["admin_level"],
             geometry_type="polygon",
@@ -52,7 +52,7 @@ class TestGeopullExtractor:
         self, pbf: PBFFile, extractor: GeopullExtractor
     ):
         extractor._extract_linestring(pbf)
-        pbf.export.assert_called_once_with(
+        pbf.export.assert_called_once_with(  # type: ignore
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural!=coastline,reef",
@@ -76,7 +76,7 @@ class TestGeopullExtractor:
     @patch("geopull.extractor.PBFFile", autospec=True)
     def test_extract_water(self, pbf: PBFFile, extractor: GeopullExtractor):
         extractor._extract_water(pbf)
-        pbf.export.assert_called_once_with(
+        pbf.export.assert_called_once_with(  # type: ignore
             attributes=["type", "id", "version", "changeset", "timestamp"],
             include_tags=[
                 "natural=water",

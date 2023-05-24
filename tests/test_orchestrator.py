@@ -26,7 +26,7 @@ class TestOrchestrator:
     def test_download(self, orchestrator: Orchestrator):
         orchestrator.download()
         for pbf in orchestrator.pbfs:
-            pbf.download.assert_called_once()
+            pbf.download.assert_called_once()  # type: ignore
 
     @patch("geopull.extractor.Extractor")
     def test_extract(self, mock_exc: MagicMock, orchestrator: Orchestrator):
