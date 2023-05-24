@@ -11,7 +11,7 @@ Created on 2022-12-29 08:48:17-05:00
 import logging
 from argparse import ArgumentParser
 
-from geopull.blocker import Blocker
+from geopull.blocker import GeoPullBlocker
 from geopull.directories import DataDir
 from geopull.extractor import GeopullExtractor
 from geopull.geofile import DaylightFile, PBFFile
@@ -132,7 +132,7 @@ class GeoPullCLI:
 
         elif self.args.subcommand == "block":
             orch = Orchestrator(self.args.country_list)
-            orch.block(Blocker)
+            orch.block()
 
         else:
             self.parser.print_usage()
