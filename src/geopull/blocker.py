@@ -48,9 +48,9 @@ class Blocker:
         line_df = self.line_df
         land_df["code"] = self.region_code
         if land_df.crs != 4326:
-            self.land_df = land_df.set_crs(4326)
+            land_df = land_df.set_crs(4326, allow_override=True)
         if line_df.crs != 4326:
-            line_df = line_df.set_crs(4326)
+            line_df = line_df.set_crs(4326, allow_override=True)
 
         land_df = land_df.explode(index_parts=False)
         land_df = land_df[land_df["geometry"].geom_type == "Polygon"]
@@ -97,9 +97,6 @@ class Blocker:
             GeoDataFrame: The blocks with overlaps removed. there could still
                 be overlapping blocks.
         """
-        if blocks.crs != 4326:
-            raise ValueError("Blocks must be in WGS84")
-
         blocks = blocks[blocks.to_crs(3395).area > 1]
         blocks = blocks.reset_index(drop=True)
 
@@ -167,10 +164,11 @@ class Blocker:
         return corrected_df
 
     def _residual_area_check(self, blocks: GeoDataFrame) -> GeoDataFrame:
-        """Checks for a difference in area stemming from the blocking process.
+        """Adds back potentially lost area due to the blocking process.
 
-        The check compares the original land area to the area of the blocks.
-        If there is a difference, the residual area is added to the blocks.
+        From the blocking process, some area originally in the land dataframe
+        can be lost while running the block polygonization. This function
+        checks for this lost area, and adds it back to the blocks.
 
         Args:
             blocks (GeoDataFrame): The blocks to check.
