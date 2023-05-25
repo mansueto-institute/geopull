@@ -199,20 +199,6 @@ class Blocker:
         blocks["code"] = blocks["code"].fillna(method="ffill")
         return blocks
 
-    def _validate(self, gdf: GeoDataFrame) -> GeoDataFrame:
-        """Validates the geometry of a GeoDataFrame.
-
-        Args:
-            gdf (GeoDataFrame): the GeoDataFrame to validate.
-
-        Returns:
-            GeoDataFrame: the validated GeoDataFrame.
-        """
-        gdf["geometry"] = gdf["geometry"].make_valid()
-        gdf = gdf.explode(index_parts=False)
-        gdf = gdf[gdf.geom_type == "Polygon"]
-        return gdf
-
     def _add_back_water_features(self, blocks: GeoDataFrame) -> GeoDataFrame:
         """Adds back water features to blocks.
 
@@ -291,6 +277,21 @@ class Blocker:
         )
         blocks = shapely.make_valid(blocks)
         return blocks
+
+    @staticmethod
+    def _validate(gdf: GeoDataFrame) -> GeoDataFrame:
+        """Validates the geometry of a GeoDataFrame.
+
+        Args:
+            gdf (GeoDataFrame): the GeoDataFrame to validate.
+
+        Returns:
+            GeoDataFrame: the validated GeoDataFrame.
+        """
+        gdf["geometry"] = gdf["geometry"].make_valid()
+        gdf = gdf.explode(index_parts=False)
+        gdf = gdf[gdf.geom_type == "Polygon"]
+        return gdf
 
     @staticmethod
     def _geohash_blocks(blocks: GeoDataFrame, precision: int) -> GeoDataFrame:
