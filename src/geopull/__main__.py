@@ -10,6 +10,7 @@ Created on 2022-12-29 08:48:17-05:00
 """
 import logging
 from argparse import ArgumentParser
+from importlib.metadata import version
 
 from geopull.directories import DataDir
 from geopull.extractor import GeopullExtractor
@@ -66,6 +67,11 @@ class GeoPullCLI:
             help="Block normalized data.",
         )
         self._build_block_parser()
+
+        subparsers.add_parser(
+            name="version",
+            help="Prints the version of geopull.",
+        )
 
         self.args = self.parser.parse_args()
 
@@ -132,6 +138,9 @@ class GeoPullCLI:
         elif self.args.subcommand == "block":
             orch = Orchestrator(self.args.country_list)
             orch.block()
+
+        elif self.args.subcommand == "version":
+            print(version("geopull"))
 
         else:
             self.parser.print_usage()
