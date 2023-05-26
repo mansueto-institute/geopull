@@ -81,7 +81,10 @@ class GeoPullCLI:
         """
         if self.args.subcommand == "download":
             if self.args.filetype == "countries":
-                orch = Orchestrator(self.args.country_list)
+                orch = Orchestrator(
+                    self.args.country_list,
+                    datadir=DataDir(self.args.output_dir),
+                )
                 try:
                     orch.download()
                 except KeyError as e:

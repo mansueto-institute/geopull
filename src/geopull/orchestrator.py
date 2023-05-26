@@ -27,7 +27,8 @@ class Orchestrator:
 
     def __post_init__(self) -> None:
         self.pbfs = [
-            PBFFile(country_code=country) for country in self.countries
+            PBFFile(country_code=country, datadir=self.datadir)
+            for country in self.countries
         ]
 
     def download(self) -> None:
