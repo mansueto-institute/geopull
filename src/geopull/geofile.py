@@ -23,6 +23,7 @@ from typing import Any, ClassVar, Optional
 from urllib.request import urlretrieve
 
 import geopandas as gpd
+from fiona.errors import DriverError
 from geopandas import GeoDataFrame
 
 from geopull.directories import DataDir
@@ -527,9 +528,17 @@ class DaylightFile(DownloadableGeoFile):
             bbox (tuple[float] | None, optional): the bounding box to load.
                 Defaults to None, in which case the whole file is loaded.
         """
-        if bbox is None:
-            return gpd.read_file(f"tar://{self.local_path}!water_polygons.shp")
-        return gpd.read_file(
-            f"tar://{self.local_path}!water_polygons.shp",
-            bbox=bbox,
-        )
+        try:
+            if bbox is None:
+                return gpd.read_file(
+                    f"tar://{self.local_path}!water_polygons.shp"
+                )
+            return gpd.read_file(
+                f"tar://{self.local_path}!water_polygons.shp",
+                bbox=bbox,
+            )
+        except DriverError:
+            logger.error("Could not load coastline from %s", self.local_path)
+            raise FileNotFoundError(
+                "Could not load coastline. Download it using the geopull CLI"
+            )
