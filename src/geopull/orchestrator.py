@@ -12,7 +12,7 @@ from geopull.directories import DataDir
 from geopull.extractor import Extractor
 from geopull.geofile import GeoJSONFeatureFile, PBFFile
 from geopull.normalizer import Normalizer
-from geopull.blocker import Blocker
+from geopull.blocker import GeoPullBlocker
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +84,9 @@ class Orchestrator:
                 admin=admin, water=water, linestring=linestring
             )
 
-    def block(self, blocker: Blocker) -> None:
+    def block(self) -> None:
         for country in self.countries:
-            blocker = Blocker(country_code=country)
+            blocker = GeoPullBlocker(region_code=country)
             blocks = blocker.build_blocks()
             blocks.to_parquet(self.datadir.blocks_dir / f"{country}.parquet")
 

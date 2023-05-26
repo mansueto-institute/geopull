@@ -26,7 +26,7 @@ class TestOrchestrator:
     def test_download(self, orchestrator: Orchestrator):
         orchestrator.download()
         for pbf in orchestrator.pbfs:
-            pbf.download.assert_called_once()
+            pbf.download.assert_called_once()  # type: ignore
 
     @patch("geopull.extractor.Extractor")
     def test_extract(self, mock_exc: MagicMock, orchestrator: Orchestrator):
@@ -38,6 +38,11 @@ class TestOrchestrator:
     def test_normalize(self, mock_norm: MagicMock, orchestrator: Orchestrator):
         orchestrator.normalize(mock_norm)
         mock_norm.normalize.assert_called_once()
+
+    @patch("geopull.orchestrator.GeoPullBlocker")
+    def test_block(self, mock_block: MagicMock, orchestrator: Orchestrator):
+        orchestrator.block()
+        mock_block.return_value.build_blocks.assert_called_once()
 
     @pytest.mark.parametrize("ncpu", [None, 4])
     @patch("geopull.orchestrator.Pool")

@@ -33,4 +33,4 @@ test/pytest:
 	pytest
 
 test/mypy:
-	mypy
+	mypy src tests
