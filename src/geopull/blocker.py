@@ -10,9 +10,12 @@ Usage:
     blocker = Blocker(region_code, land_df, line_df)
     blocks = blocker.build_blocks()
 """
+from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from math import isclose
+from multiprocessing import Pool
 
 import geopandas as gpd
 import pandas as pd
@@ -20,6 +23,7 @@ import pygeohash as pgh
 import shapely
 from geopandas import GeoDataFrame
 from shapely import MultiLineString, MultiPolygon
+from tqdm import tqdm
 
 from geopull.geofile import ParquetFeatureFile
 
@@ -40,8 +44,8 @@ class Blocker:
     """
 
     region_code: str
-    land_df: GeoDataFrame
-    line_df: GeoDataFrame
+    land_df: GeoDataFrame = field(repr=False)
+    line_df: GeoDataFrame = field(repr=False)
 
     def __post_init__(self) -> None:
         land_df = self.land_df
@@ -54,13 +58,40 @@ class Blocker:
 
         land_df = land_df.explode(index_parts=False)
         land_df = land_df[land_df["geometry"].geom_type == "Polygon"]
-        land_df = land_df[["code", "geometry"]]
+        land_df = land_df[["code", "geometry", "admin_level"]]
         line_df = line_df[["geometry", "highway"]]
 
         self.land_df = land_df
         self.line_df = line_df
 
-    def build_blocks(self, precision: int = 12) -> GeoDataFrame:
+    def myfunc(self, chunk, line_df):
+        sub_blocker = Blocker(
+            region_code=chunk["code"].iloc[0],
+            land_df=chunk,
+            line_df=line_df,
+        )
+        return sub_blocker._build_blocks()
+
+    def blockify(
+        self, chunker: Chunker | None = None, precision: int = 12
+    ) -> GeoDataFrame:
+        if chunker is None:
+            return self._build_blocks(precision=precision)
+        chunk_blocks = chunker.chunk()
+        line_df = self.line_df
+        chunk_gen = (
+            (chunk_blocks[chunk_blocks["block_id"] == block_id], line_df)
+            for block_id in chunk_blocks["block_id"].unique()
+        )
+
+        with Pool() as pool:
+            results = pool.starmap(
+                self.myfunc,
+                tqdm(chunk_gen, total=len(chunk_blocks["block_id"].unique())),
+            )
+            return pd.concat(results)
+
+    def _build_blocks(self, precision: int = 12) -> GeoDataFrame:
         """Runs the entire blocking process pipeline.
 
         Args:
@@ -70,6 +101,7 @@ class Blocker:
         Returns:
             GeoDataFrame: The blocks.
         """
+
         blocks = self._make_blocks()
         blocks = self._validate(blocks)
         blocks = self._add_back_water_features(blocks)
@@ -125,7 +157,15 @@ class Blocker:
             keep_geom_type=True,
             make_valid=True,
         )
-        overlap_df.index = overlap.index
+        overlap_df = gpd.overlay(
+            df1=overlap_df,
+            df2=overlap,
+            how="intersection",
+            keep_geom_type=True,
+            make_valid=True,
+        )
+        overlap_df.index = overlap_df["index_right"]
+        overlap_df = overlap_df.drop(columns="index_right")
         corrected_df = pd.concat(
             [
                 blocks[~blocks.index.isin(unique_overlap_ids)][["geometry"]],
@@ -182,6 +222,9 @@ class Blocker:
         )
         if residual_area <= 0:
             return blocks
+        # this is tolerance of 10 meters squared
+        if isclose(residual_area, 0, abs_tol=10):
+            return blocks
 
         logger.warning(
             "Residual area: %.4f sq. km", self._m2tokm2(residual_area)
@@ -228,6 +271,9 @@ class Blocker:
                 keep_geom_type=True,
                 make_valid=True,
             )
+        if "code" not in blocks:
+            blocks["code"] = self.region_code
+
         return blocks
 
     def _make_blocks(self) -> GeoDataFrame:
@@ -254,6 +300,36 @@ class Blocker:
         gdf = GeoDataFrame(data={"geometry": blocks}).set_crs(4326)
 
         return gdf
+
+    def _geohash_blocks(
+        self, blocks: GeoDataFrame, precision: int
+    ) -> GeoDataFrame:
+        """Assigns a geohash to each block.
+
+        Args:
+            blocks (GeoDataFrame): the blocks to geohash.
+            precision (int): the precision of the geohash.
+
+        Returns:
+            GeoDataFrame: the blocks with a geohash.
+        """
+        logger.info("Geohashing blocks.")
+        blocks = blocks[~blocks.geometry.is_empty].copy()
+        blocks["geohash"] = blocks.geometry.representative_point().apply(
+            lambda x: pgh.encode(x.y, x.x, precision=precision)
+        )
+        blocks = blocks.sort_values(by="geohash", ascending=False)
+        blocks = blocks.reset_index(drop=True)
+        blocks["georank"] = blocks.groupby("geohash").cumcount()
+        blocks["block_id"] = (
+            blocks["code"]
+            + "_"
+            + blocks["geohash"]
+            + "_"
+            + blocks["georank"].astype(str)
+        )
+        blocks = blocks.drop(columns=["geohash", "georank"])
+        return blocks
 
     def _polygonize(
         self, land: MultiPolygon, line: MultiLineString
@@ -292,34 +368,6 @@ class Blocker:
         gdf = gdf.explode(index_parts=False)
         gdf = gdf[gdf.geom_type == "Polygon"]
         return gdf
-
-    @staticmethod
-    def _geohash_blocks(blocks: GeoDataFrame, precision: int) -> GeoDataFrame:
-        """Assigns a geohash to each block.
-
-        Args:
-            blocks (GeoDataFrame): the blocks to geohash.
-            precision (int): the precision of the geohash.
-
-        Returns:
-            GeoDataFrame: the blocks with a geohash.
-        """
-        logger.info("Geohashing blocks.")
-        blocks["geohash"] = blocks.geometry.representative_point().apply(
-            lambda x: pgh.encode(x.y, x.x, precision=precision)
-        )
-        blocks = blocks.sort_values(by="geohash", ascending=False)
-        blocks = blocks.reset_index(drop=True)
-        blocks["georank"] = blocks.groupby("geohash").cumcount()
-        blocks["block_id"] = (
-            blocks["code"]
-            + "_"
-            + blocks["geohash"]
-            + "_"
-            + blocks["georank"].astype(str)
-        )
-        blocks = blocks.drop(columns=["code", "geohash", "georank"])
-        return blocks
 
     @staticmethod
     def _m2tokm2(m2: float) -> float:
@@ -392,3 +440,51 @@ class GeoPullBlocker(Blocker):
         self.land_df = land_df
         self.line_df = line_df
         super().__post_init__()
+
+
+@dataclass
+class Chunker:
+    """Represents a chunker object that chunks a pair of land and line files"""
+
+    blocker: Blocker
+    land_df: GeoDataFrame = field(init=False)
+    line_df: GeoDataFrame = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.land_df = self.blocker.land_df
+        self.line_df = self.blocker.line_df
+
+    def chunk(self) -> GeoDataFrame:
+        """Chunk generates blocks
+
+        Returns:
+            _type_: _description_
+        """
+        land_df = self.blocker.land_df
+        line_df = self.blocker.line_df
+
+        roads = line_df[line_df["highway"].isin(self._get_highway_levels())]
+        chunk_blocker = Blocker(
+            region_code=self.blocker.region_code,
+            land_df=land_df,
+            line_df=roads,
+        )
+
+        chunk_blocks = chunk_blocker._build_blocks()
+        chunk_blocks["code"] = self.blocker.region_code
+
+        return chunk_blocks
+
+    def _get_highway_levels(self, rank: int = 2) -> set[str]:
+        default_set = {"motorway", "trunk", "primary"}
+        default_set.add(self._get_nth_freq_highway(rank=rank))
+        return default_set
+
+    def _get_nth_freq_highway(self, rank: int = 2) -> str:
+        highdf = self.line_df[self.line_df["highway"].notnull()]
+        result = highdf["highway"].value_counts().index[rank]
+        if not isinstance(result, str):
+            raise TypeError(
+                "The result of the highway value counts is not a string."
+            )
+        return result
