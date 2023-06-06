@@ -88,7 +88,7 @@ class Orchestrator:
     def block(self) -> None:
         for country in self.countries:
             blocker = GeoPullBlocker(region_code=country)
-            blocks = blocker.build_blocks()
+            blocks = blocker.blockify()
             blocks.to_parquet(self.datadir.blocks_dir / f"{country}.parquet")
 
     def _pool_mapper(self, func: Callable, iterable: Iterable) -> None:

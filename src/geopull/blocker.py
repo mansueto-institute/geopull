@@ -58,7 +58,7 @@ class Blocker:
 
         land_df = land_df.explode(index_parts=False)
         land_df = land_df[land_df["geometry"].geom_type == "Polygon"]
-        land_df = land_df[["code", "geometry", "admin_level"]]
+        land_df = land_df[["code", "geometry"]]
         line_df = line_df[["geometry", "highway"]]
 
         self.land_df = land_df

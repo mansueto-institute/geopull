@@ -223,8 +223,8 @@ class TestBlockerMethods:
         valid_df = Blocker._validate(land_df)
         assert land_df.equals(valid_df)
 
-    def test_geohash_blocks(self, blocks_df: GeoDataFrame):
-        geohashed = Blocker._geohash_blocks(blocks=blocks_df, precision=1)
+    def test_geohash_blocks(self, blocks_df: GeoDataFrame, blocker: Blocker):
+        geohashed = blocker._geohash_blocks(blocks=blocks_df, precision=1)
         assert "block_id" in geohashed.columns
         assert geohashed["block_id"].nunique() > 1
 
