@@ -95,6 +95,10 @@ geopull block DJI SYC
 
 This will create two `parquet` files that contain the blocks for each country. All files from the process will be located in `./data` by default.
 
+### Using your own data
+
+You can also use our blocking process with two files of your choosing. A [notebook](/docs/examples/own_data.ipynb) example was made that describes this usage.
+
 ### Data Directories
 
 When you download data, if you don't tell the program where you'd like to keep the files, it will create a `data/` directory within your current path. This directory will have subdirectories depending on the type of files that will be store in such subdirectory, such as `.pbf` or `.geojson`.
